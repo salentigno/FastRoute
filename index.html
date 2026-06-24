@@ -370,7 +370,7 @@
   .exit-courier-btn:hover { border-color:var(--danger); color:var(--danger); background:var(--danger-light); }
   .exit-courier-btn svg { width:15px; height:15px; stroke:currentColor; fill:none; }
   .qr-box { display:flex; align-items:center; justify-content:center; min-height:240px; margin:4px 0 12px; padding:14px; background:#fff; border-radius:12px; }
-  .qr-box img, .qr-box canvas { display:block; width:240px; height:240px; }
+  .qr-box img, .qr-box canvas { display:block; width:240px; height:240px; image-rendering:pixelated; image-rendering:crisp-edges; }
   .qr-box.qr-fallback { min-height:0; padding:14px 16px; background:var(--bg-2); color:var(--text-muted); font-size:13px; line-height:1.5; text-align:center; }
   .qr-link { width:100%; box-sizing:border-box; padding:9px 11px; border-radius:10px; border:1px solid var(--line-strong); background:var(--surface); color:var(--text-muted); font-size:12px; font-family:inherit; }
 
@@ -453,7 +453,7 @@
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -896,11 +896,28 @@ function navUrl(s, app){
   if (app === 'waze') return 'https://waze.com/ul?q=' + encA(q) + '&navigate=yes';
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encA(q) + '&travelmode=driving';
 }
+// Abre un enlace externo (Maps, Waze, WhatsApp, correo) de forma fiable tanto
+// en el navegador como en la app instalada (standalone), donde window.open
+// con '_blank' suele bloquearse. Un <a> pulsado por código lo entrega al
+// sistema operativo, que abre la app correspondiente.
+function openExternal(url){
+  if (!url) return;
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    if (/^https?:/i.test(url)){ a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {
+    try { window.location.href = url; } catch {}
+  }
+}
 function openStopNav(ci, i){
   const r = lastResult && lastResult.routes && lastResult.routes[ci];
   const s = r && r.stops && r.stops[i];
   const url = s && navUrl(s, navApp);
-  if (url) window.open(url, '_blank'); else toast(t('optimizeFirst'));
+  if (url) openExternal(url); else toast(t('optimizeFirst'));
 }
 function setNavApp(app){
   navApp = (app === 'waze') ? 'waze' : 'gmaps';
@@ -1014,13 +1031,13 @@ async function copyText(text){
 function shareWhatsApp(i){
   const txt = shareTextFor(i);
   if (!txt){ toast(t('optimizeFirst')); return; }
-  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  openExternal('https://wa.me/?text=' + encodeURIComponent(txt));
 }
 function shareEmail(i){
   const txt = shareTextFor(i);
   if (!txt){ toast(t('optimizeFirst')); return; }
   const subj = t('optimizedRoute') + (lastResult.routes.length > 1 ? ' · ' + t('courier') + ' ' + (i + 1) : '');
-  window.location.href = 'mailto:?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(txt);
+  openExternal('mailto:?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(txt));
 }
 async function copyLink(i){
   const txt = shareTextFor(i);
@@ -1129,19 +1146,26 @@ function openQRModal(url){
   const box = document.getElementById('qr-box');
   const linkEl = document.getElementById('qr-link');
   box.innerHTML = '';
+  box.classList.remove('qr-fallback');
   linkEl.value = url;
   modal.classList.add('open');
-  // QRCode se carga desde CDN; si no está o la ruta es muy grande, mostramos enlace.
-  const tooBig = url.length > 2300;
-  if (typeof QRCode === 'function' && !tooBig){
+  // QR generado en local. Si la ruta es enorme o la librería no cargó, se
+  // muestra el enlace para copiarlo (el botón Copiar sigue disponible).
+  if (typeof qrcode === 'function'){
     try {
-      new QRCode(box, { text: url, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.L });
-      box.classList.remove('qr-fallback');
-    } catch { box.classList.add('qr-fallback'); box.textContent = t('qrTooBig'); }
-  } else {
-    box.classList.add('qr-fallback');
-    box.textContent = tooBig ? t('qrTooBig') : t('qrNoLib');
+      const qr = qrcode(0, 'L');   // tipo automático, corrección L (máxima capacidad)
+      qr.addData(url);
+      qr.make();
+      box.innerHTML = qr.createImgTag(6, 8); // px por módulo, margen
+      return;
+    } catch (e){
+      box.classList.add('qr-fallback');
+      box.textContent = t('qrTooBig');
+      return;
+    }
   }
+  box.classList.add('qr-fallback');
+  box.textContent = t('qrNoLib');
 }
 function closeQR(){ document.getElementById('qr-modal').classList.remove('open'); }
 async function copyQRLink(){
