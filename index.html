@@ -453,7 +453,7 @@
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.0.3/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -1149,20 +1149,22 @@ function openQRModal(url){
   box.classList.remove('qr-fallback');
   linkEl.value = url;
   modal.classList.add('open');
-  // QR generado en local. Si la ruta es enorme o la librería no cargó, se
-  // muestra el enlace para copiarlo (el botón Copiar sigue disponible).
+  // QR generado en local. Probamos tamaños (versión 1→40) hasta que la ruta
+  // quepa, con corrección L (máxima capacidad). Si la librería no cargó o la
+  // ruta no cabe ni en el mayor, mostramos el enlace para copiarlo.
   if (typeof qrcode === 'function'){
-    try {
-      const qr = qrcode(0, 'L');   // tipo automático, corrección L (máxima capacidad)
-      qr.addData(url);
-      qr.make();
-      box.innerHTML = qr.createImgTag(6, 8); // px por módulo, margen
-      return;
-    } catch (e){
-      box.classList.add('qr-fallback');
-      box.textContent = t('qrTooBig');
-      return;
+    for (let type = 1; type <= 40; type++){
+      try {
+        const qr = qrcode(type, 'L');
+        qr.addData(url);
+        qr.make();
+        box.innerHTML = qr.createImgTag(6, 8); // px por módulo, margen
+        return;
+      } catch (e){ /* demasiado pequeño: probamos el siguiente */ }
     }
+    box.classList.add('qr-fallback');
+    box.textContent = t('qrTooBig');
+    return;
   }
   box.classList.add('qr-fallback');
   box.textContent = t('qrNoLib');
