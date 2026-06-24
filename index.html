@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RutaRapida">
 <title>Planificador de Rutas de Reparto</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%231f6fb2' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z'/><path fill='%23fff' d='M11 13.5v-3H9l4-6.5v4.5h2l-4 5z'/></svg>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,8 +55,10 @@
   }
 
   .topbar { backdrop-filter:saturate(1.4) blur(8px); background:var(--topbar-bg); border-bottom:1px solid var(--line); padding:13px 20px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; }
-  .topbar-icon { width:36px; height:36px; border-radius:11px; background:linear-gradient(145deg, var(--blue-2), var(--blue-dark)); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px -6px rgba(12,68,124,.7); }
-  .topbar-icon svg { width:20px; height:20px; stroke:#fff; fill:none; }
+  .topbar-icon { width:36px; height:36px; display:flex; align-items:center; justify-content:center; }
+  .topbar-icon svg { width:30px; height:30px; }
+  .topbar-icon .pin { fill:var(--blue); }
+  .topbar-icon .bolt { fill:#fff; }
   .wordmark { font-family:var(--display); font-size:18px; font-weight:700; letter-spacing:-.03em; color:var(--ink); display:flex; align-items:center; gap:8px; }
   .wordmark .accent { color:var(--blue); }
   .pill { font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--blue-dark); background:var(--blue-light); padding:3px 8px; border-radius:999px; }
@@ -175,8 +178,8 @@
        Sin scroll de página: cada columna scrollea por dentro. */
     .shell { max-width:none; padding:14px clamp(14px,2vw,32px); height:calc(100vh - var(--apptop,64px)); overflow:hidden; align-items:stretch; gap:14px; }
     .topbar { padding:8px clamp(14px,2vw,32px); }
-    .topbar-icon { width:30px; height:30px; border-radius:9px; }
-    .topbar-icon svg { width:17px; height:17px; }
+    .topbar-icon { width:30px; height:30px; }
+    .topbar-icon svg { width:26px; height:26px; }
     .wordmark { font-size:16px; }
     .sidebar { position:static; top:auto; height:100%; max-height:none; width:208px; }
     .main { height:100%; min-height:0; }
@@ -476,7 +479,7 @@
     <svg viewBox="0 0 24 24" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
   <div class="topbar-icon">
-    <svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg>
+    <svg viewBox="0 0 24 24" stroke="none"><path class="pin" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><path class="bolt" d="M11 13.5v-3H9l4-6.5v4.5h2l-4 5z"/></svg>
   </div>
   <div class="wordmark">Ruta<span class="accent">Rapida</span></div>
   <span class="topbar-sub" data-i18n="subtitle">Optimiza tus repartos en segundos</span>
@@ -966,7 +969,7 @@ let deferredInstall = null;
   // Manifiesto en runtime (sirve cuando la app se aloja en un dominio).
   try {
     const icon = 'data:image/svg+xml,' + encodeURIComponent(
-      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='#1f6fb2'/><g fill='none' stroke='#fff' stroke-width='12' stroke-linecap='round' stroke-linejoin='round'><path d='M40 96h112M40 96l26-26M40 96l26 26M152 96l-26-26M152 96l-26 26'/></g></svg>");
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='#1f6fb2' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z'/><path fill='#fff' d='M11 13.5v-3H9l4-6.5v4.5h2l-4 5z'/></svg>");
     const manifest = { name: 'RutaRapida', short_name: 'RutaRapida', start_url: '.', scope: '.', display: 'standalone', background_color: '#f4f8fc', theme_color: '#1f6fb2', icons: [{ src: icon, sizes: 'any', type: 'image/svg+xml', purpose: 'any' }] };
     const link = document.createElement('link');
     link.rel = 'manifest';
