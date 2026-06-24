@@ -360,7 +360,7 @@
   .share-btn.wa:hover { background:rgba(37,211,102,.1); }
   .share-btn.qr { color:var(--blue); border-color:rgba(45,108,223,.45); }
   .share-btn.qr:hover { background:var(--blue-light); }
-  /* Modo repartidor: solo la ruta. Se oculta el editor, el menú y las recientes. */
+  /* Modo repartidor: solo la ruta. Oculta editor, menú, recientes y reiniciar. */
   body.courier #menu-btn, body.courier #btn-save-depot, body.courier .editor { display:none !important; }
   body.courier .mnav-btn[data-view="edit"] { display:none !important; }
   body.courier .mnav-btn[data-view="route"] { flex:1; }
@@ -370,7 +370,7 @@
   .exit-courier-btn:hover { border-color:var(--danger); color:var(--danger); background:var(--danger-light); }
   .exit-courier-btn svg { width:15px; height:15px; stroke:currentColor; fill:none; }
   .qr-box { display:flex; align-items:center; justify-content:center; min-height:240px; margin:4px 0 12px; padding:14px; background:#fff; border-radius:12px; }
-  .qr-box img, .qr-box canvas { display:block; width:240px; height:240px; image-rendering:pixelated; image-rendering:crisp-edges; }
+  .qr-box img, .qr-box canvas { display:block; width:240px; height:240px; }
   .qr-box.qr-fallback { min-height:0; padding:14px 16px; background:var(--bg-2); color:var(--text-muted); font-size:13px; line-height:1.5; text-align:center; }
   .qr-link { width:100%; box-sizing:border-box; padding:9px 11px; border-radius:10px; border:1px solid var(--line-strong); background:var(--surface); color:var(--text-muted); font-size:12px; font-family:inherit; }
 
@@ -626,6 +626,10 @@
     <div class="modal-actions">
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="qr-modal" onclick="if(event.target===this)closeQR()">
   <div class="modal">
     <div class="modal-title" data-i18n="shareQR">Compartir QR</div>
     <div class="modal-hint" data-i18n="qrHint">Escanea el código con otro móvil para abrir esta ruta.</div>
@@ -896,26 +900,11 @@ function navUrl(s, app){
   if (app === 'waze') return 'https://waze.com/ul?q=' + encA(q) + '&navigate=yes';
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encA(q) + '&travelmode=driving';
 }
-// Abre un enlace externo (Maps, Waze, WhatsApp, correo) de forma fiable tanto
-// en el navegador como en la app instalada (standalone). En la app instalada,
-// abrir "pestaña nueva" (window.open/_blank) se bloquea, así que navegamos
-// directamente y el sistema operativo abre la app correspondiente. En el
-// navegador abrimos pestaña nueva para no perder la ruta.
-function openExternal(url){
-  if (!url) return;
-  if (isStandalone()){
-    window.location.href = url;
-    return;
-  }
-  let w = null;
-  try { w = window.open(url, '_blank', 'noopener'); } catch {}
-  if (!w){ try { window.location.href = url; } catch {} }
-}
 function openStopNav(ci, i){
   const r = lastResult && lastResult.routes && lastResult.routes[ci];
   const s = r && r.stops && r.stops[i];
   const url = s && navUrl(s, navApp);
-  if (url) openExternal(url); else toast(t('optimizeFirst'));
+  if (url) window.open(url, '_blank'); else toast(t('optimizeFirst'));
 }
 function setNavApp(app){
   navApp = (app === 'waze') ? 'waze' : 'gmaps';
@@ -930,12 +919,11 @@ function syncNavSeg(){
   if (w) w.classList.toggle('on', navApp === 'waze');
 }
 function openSettings(){ syncNavSeg(); refreshInstallBtn(); refreshCourierRow(); document.getElementById('settings-modal').classList.add('open'); }
-function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
 
 // ── Modo repartidor ─────────────────────────────────────────────────────────
 // Al abrir desde un QR, el móvil queda fijo en SU ruta: sin editor, sin menú,
 // sin recientes ni reiniciar. Se conserva aunque recargue (queda guardado).
-// Para salir (p. ej. tu móvil de pruebas): Ajustes → Salir.
+// Para salir (p. ej. tu móvil de pruebas): Ajustes → Modo repartidor → Salir.
 function enterCourierMode(persist){
   document.body.classList.add('courier');
   if (persist) lsSet(LS_COURIER, 1);
@@ -951,6 +939,7 @@ function refreshCourierRow(){
   const row = document.getElementById('courier-exit-row');
   if (row) row.style.display = document.body.classList.contains('courier') ? '' : 'none';
 }
+function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
 
 // ── Instalación (PWA) ───────────────────────────────────────────────────────
 // Solo es instalable servida por HTTPS. Capturamos el evento del navegador y,
@@ -1029,13 +1018,13 @@ async function copyText(text){
 function shareWhatsApp(i){
   const txt = shareTextFor(i);
   if (!txt){ toast(t('optimizeFirst')); return; }
-  openExternal('https://wa.me/?text=' + encodeURIComponent(txt));
+  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
 }
 function shareEmail(i){
   const txt = shareTextFor(i);
   if (!txt){ toast(t('optimizeFirst')); return; }
   const subj = t('optimizedRoute') + (lastResult.routes.length > 1 ? ' · ' + t('courier') + ' ' + (i + 1) : '');
-  openExternal('mailto:?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(txt));
+  window.location.href = 'mailto:?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(txt);
 }
 async function copyLink(i){
   const txt = shareTextFor(i);
