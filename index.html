@@ -453,7 +453,7 @@
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.0.3/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -897,21 +897,19 @@ function navUrl(s, app){
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encA(q) + '&travelmode=driving';
 }
 // Abre un enlace externo (Maps, Waze, WhatsApp, correo) de forma fiable tanto
-// en el navegador como en la app instalada (standalone), donde window.open
-// con '_blank' suele bloquearse. Un <a> pulsado por código lo entrega al
-// sistema operativo, que abre la app correspondiente.
+// en el navegador como en la app instalada (standalone). En la app instalada,
+// abrir "pestaña nueva" (window.open/_blank) se bloquea, así que navegamos
+// directamente y el sistema operativo abre la app correspondiente. En el
+// navegador abrimos pestaña nueva para no perder la ruta.
 function openExternal(url){
   if (!url) return;
-  try {
-    const a = document.createElement('a');
-    a.href = url;
-    if (/^https?:/i.test(url)){ a.target = '_blank'; a.rel = 'noopener noreferrer'; }
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } catch {
-    try { window.location.href = url; } catch {}
+  if (isStandalone()){
+    window.location.href = url;
+    return;
   }
+  let w = null;
+  try { w = window.open(url, '_blank', 'noopener'); } catch {}
+  if (!w){ try { window.location.href = url; } catch {} }
 }
 function openStopNav(ci, i){
   const r = lastResult && lastResult.routes && lastResult.routes[ci];
@@ -1146,28 +1144,19 @@ function openQRModal(url){
   const box = document.getElementById('qr-box');
   const linkEl = document.getElementById('qr-link');
   box.innerHTML = '';
-  box.classList.remove('qr-fallback');
   linkEl.value = url;
   modal.classList.add('open');
-  // QR generado en local. Probamos tamaños (versión 1→40) hasta que la ruta
-  // quepa, con corrección L (máxima capacidad). Si la librería no cargó o la
-  // ruta no cabe ni en el mayor, mostramos el enlace para copiarlo.
-  if (typeof qrcode === 'function'){
-    for (let type = 1; type <= 40; type++){
-      try {
-        const qr = qrcode(type, 'L');
-        qr.addData(url);
-        qr.make();
-        box.innerHTML = qr.createImgTag(6, 8); // px por módulo, margen
-        return;
-      } catch (e){ /* demasiado pequeño: probamos el siguiente */ }
-    }
+  // QRCode se carga desde CDN; si no está o la ruta es muy grande, mostramos enlace.
+  const tooBig = url.length > 2300;
+  if (typeof QRCode === 'function' && !tooBig){
+    try {
+      new QRCode(box, { text: url, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.L });
+      box.classList.remove('qr-fallback');
+    } catch { box.classList.add('qr-fallback'); box.textContent = t('qrTooBig'); }
+  } else {
     box.classList.add('qr-fallback');
-    box.textContent = t('qrTooBig');
-    return;
+    box.textContent = tooBig ? t('qrTooBig') : t('qrNoLib');
   }
-  box.classList.add('qr-fallback');
-  box.textContent = t('qrNoLib');
 }
 function closeQR(){ document.getElementById('qr-modal').classList.remove('open'); }
 async function copyQRLink(){
