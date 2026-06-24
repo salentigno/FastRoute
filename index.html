@@ -65,10 +65,23 @@
   @media (max-width:720px){ .layout{ grid-template-columns:1fr; } .topbar-sub{ display:none; } }
 
   .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); min-width:0; }
-  .card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .card-head { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:12px; }
+  .reset-icon { display:inline-flex; align-items:center; gap:6px; padding:6px 11px; font-size:12.5px; font-weight:600; font-family:inherit; border-radius:999px; border:1px solid var(--line-strong); background:var(--surface); color:var(--text-hint); cursor:pointer; transition:.12s; }
+  .reset-icon svg { width:15px; height:15px; stroke:currentColor; fill:none; }
+  .reset-icon:hover { color:var(--danger); border-color:var(--danger); background:var(--danger-light); }
   .card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:var(--text-muted); }
 
   .ac-wrap { position:relative; flex:1; min-width:0; }
+  .stop-num { flex:0 0 56px; width:56px !important; text-align:center; padding-left:6px !important; padding-right:6px !important; }
+  .remove-spacer { width:30px; flex:0 0 30px; }
+  /* Parada ya escrita: se muestra compacta con la dirección completa (se puede
+     tocar para volver a editar). Ahorra altura y no corta el texto. */
+  .stop-display { display:none; flex:1; min-width:0; font-size:13.5px; line-height:1.35; padding:8px 12px; border:1px solid var(--line-strong); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); cursor:text; word-break:break-word; }
+  .stop-display:hover { border-color:var(--blue); }
+  .stop-display .sd-num { font-weight:700; color:var(--blue); }
+  .stop-row.filled .ac-wrap, .stop-row.filled .stop-num,
+  .origin-row.filled .ac-wrap, .origin-row.filled .stop-num { display:none; }
+  .stop-row.filled .stop-display, .origin-row.filled .stop-display { display:block; }
   .ac-dropdown { position:absolute; top:calc(100% + 6px); left:0; right:0; background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); z-index:200; max-height:min(62vh,440px); overflow-y:auto; display:none; }
   .ac-dropdown.open { display:flex; flex-direction:column; }
   .ac-list { max-height:208px; overflow-y:auto; }
@@ -116,7 +129,8 @@
   .btn-optimize:disabled { background:var(--line-strong); color:var(--text-hint); box-shadow:none; cursor:not-allowed; transform:none; }
   .btn-optimize svg { width:17px; height:17px; stroke:currentColor; fill:none; }
 
-  .toolbar { display:flex; gap:8px; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .toolbar .origin-icon { width:38px; height:38px; }
   .btn-mini { display:inline-flex; align-items:center; gap:6px; padding:7px 11px; font-size:12.5px; font-weight:600; font-family:inherit; border-radius:999px; border:1px solid var(--line-strong); background:var(--surface); color:var(--text-muted); cursor:pointer; transition:.12s; }
   .btn-mini:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
   .btn-mini.danger:hover { border-color:var(--danger); color:var(--danger); background:var(--danger-light); }
@@ -349,8 +363,8 @@
   .share-box { display:flex; flex-direction:column; gap:10px; }
   .share-box input { font-size:12px; color:var(--text-muted); background:var(--bg-2); border:1px solid var(--line); cursor:text; }
   .share-row { display:flex; flex-wrap:wrap; gap:8px; }
-  .share-btn { flex:1 1 0; min-width:96px; padding:10px 8px; border-radius:var(--radius-sm); border:1px solid var(--line-strong); background:var(--surface); color:var(--text); font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; justify-content:center; gap:7px; transition:.12s; }
-  .share-btn svg { width:16px; height:16px; }
+  .share-btn { flex:1 1 0; min-width:0; padding:12px 8px; border-radius:var(--radius-sm); border:1px solid var(--line-strong); background:var(--surface); color:var(--text); cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; justify-content:center; transition:.12s; }
+  .share-btn svg { width:22px; height:22px; }
   .share-btn:not(.wa) svg { stroke:currentColor; fill:none; }
   .share-btn:hover { background:var(--bg-2); }
   .share-btn.native { background:var(--ink); color:#fff; border-color:var(--ink); }
@@ -438,13 +452,13 @@
     .card { padding:16px; }
     #route-map { height:210px; }
     input[type="text"] { font-size:16px; padding:12px 13px; }   /* 16px evita el auto-zoom de iOS */
-    .card-head { flex-direction:column; align-items:stretch; gap:12px; }
+    .card-head { flex-direction:row; align-items:center; justify-content:flex-end; gap:12px; }
     .toolbar { width:100%; }
     .btn-mini { flex:1; justify-content:center; padding:10px; font-size:13px; }
     .stat { padding:8px 5px; }
     .stat-value { font-size:17px; }
     .stat-label { font-size:9.5px; }
-    .share-btn { font-size:12.5px; padding:11px 6px; min-width:0; }
+    .share-btn { padding:12px 6px; min-width:0; }
     .ac-dropdown { left:0; right:0; }
   }
 
@@ -489,16 +503,10 @@
     <div class="layout">
       <div class="card editor">
         <div class="card-head">
-          <div class="toolbar">
-            <button class="btn-mini" id="btn-save-depot" onclick="saveDepot()" data-i18n-title="saveDepot" title="Guardar salida">
-              <svg viewBox="0 0 24 24" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-              <span data-i18n="saveDepot">Guardar salida</span>
-            </button>
-            <button class="btn-mini danger" onclick="resetRoute()" data-i18n-title="reset" title="Reiniciar">
-              <svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 12a9 9 0 109-9 9 9 0 00-7 3.5M3 4v4h4"/></svg>
-              <span data-i18n="reset">Reiniciar</span>
-            </button>
-          </div>
+          <button class="reset-icon" onclick="resetRoute()" data-i18n-title="reset" title="Reiniciar" aria-label="Reiniciar">
+            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 12a9 9 0 109-9 9 9 0 00-7 3.5M3 4v4h4"/></svg>
+            <span data-i18n="reset">Reiniciar</span>
+          </button>
         </div>
 
         <div class="origin-row">
@@ -509,11 +517,10 @@
             <input type="text" id="origin" data-i18n-ph="originPh" placeholder="Punto de salida (almacen, tienda...)" autocomplete="off" />
             <div class="ac-dropdown" id="ac-origin"></div>
           </div>
+          <input type="text" class="stop-num" id="origin-num" inputmode="numeric" data-i18n-ph="numPh" placeholder="Nº" aria-label="Número" autocomplete="off" />
+          <div class="stop-display" id="origin-display" title="Editar"></div>
           <button class="origin-icon" id="btn-gps" onclick="useGps()" data-i18n-title="useGps" title="Mi ubicación (GPS)" aria-label="GPS">
             <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg>
-          </button>
-          <button class="origin-icon" id="btn-use-depot" onclick="useSavedDepot()" data-i18n-title="useSavedDepot" title="Usar salida guardada" aria-label="Salida guardada" hidden>
-            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>
           </button>
         </div>
 
@@ -689,12 +696,12 @@ async function fetchT(url, ms = 7000, opts = {}) {
 
 // ── Idiomas (i18n) ──────────────────────────────────────────────────────────
 const I18N = {
-  es: { courierMode:"Modo repartidor", exitCourier:"Salir", courierOff:"Modo repartidor desactivado", shareQR:"Compartir QR", qrHint:"Escanea el c\u00f3digo con otro m\u00f3vil para abrir esta ruta.", qrTooBig:"La ruta es muy larga para un QR. Usa \u201cCopiar\u201d y env\u00eda el enlace.", qrNoLib:"No se pudo generar el QR. Usa \u201cCopiar\u201d y env\u00eda el enlace.", install:"Instalar app", installed:"Instalada", installHint:"Para instalar: abre el men\u00fa del navegador y elige \u201cA\u00f1adir a pantalla de inicio\u201d.", deliverShort:"Entregar", nextStop:"Siguiente parada", navBtn:"Navegar", routeDone:"\u00a1Ruta completada!", resetDeliv:"Reiniciar entregas", markDone:"Marcar como entregada", settings:"Ajustes", language:"Idioma", navigation:"Navegaci\u00f3n", done:"Listo", navWith:"Navegar con", navGo:"Abrir como destino", navHint:"Toca cada parada para abrirla como destino desde tu ubicación. Al compartir se envía la lista en orden con un enlace por parada.", allRoutes:"Todos", centerMap:"Centrar mapa", navStops:"Paradas", navRoute:"Ruta", noRouteYet:"Optimiza una ruta primero", fixMarked:"No encontramos estas direcciones. Corrige las marcadas en rojo y vuelve a optimizar.", minimizeMap:"Minimizar mapa", expandMap:"Mostrar mapa", useGps:"Mi ubicación (GPS)", useSavedDepot:"Usar salida guardada", gpsLocating:"Localizando…", gpsDone:"Ubicación detectada", gpsDenied:"Permiso de ubicación denegado", gpsUnavailable:"No se pudo obtener la ubicación", depotLoaded:"Salida cargada", balanceStops:"Equilibrar paradas", roadOpt:"Optimizar por carretera", leg:"Tramo", splitNote:"Ruta larga: dividida en tramos para Google Maps. Abre cada tramo en orden.", pasteList:"Pegar lista", pasteTitle:"Pegar direcciones", pasteHint:"Una dirección por línea", cancel:"Cancelar", add:"Añadir", mapNoteReal:"Trazado real por carretera · OpenStreetMap/OSRM", calcReal:"Calculando ruta real…", mapNote:"Vista previa en línea recta · la ruta real la traza Google Maps", couriers:"Repartidores", courier:"Repartidor", timeTotal:"Tiempo estimado", stopsLabel:"Paradas", mailLabel:"Correo", copyLink:"Copiar", subtitle:"Optimiza tus repartos en segundos", recent:"Rutas recientes", recentEmpty:"Aún no hay rutas. Optimiza una y aparecerá aquí.", clearAll:"Borrar todo", yourRoute:"Tu ruta", saveDepot:"Guardar salida", reset:"Reiniciar", originPh:"Punto de salida (almacén, tienda...)", stopPh:"Dirección de entrega", addStop:"Añadir parada", optimize:"Optimizar ruta", recalc:"Recalcular ruta", geocoding:"Geocodificando…", calcRoute:"Calculando ruta…", optimizedRoute:"Ruta optimizada", distTotal:"Distancia total", distSaved:"Distancia ahorrada", timeSaved:"Tiempo ahorrado", unitKm:"km", unitMin:"min", startPoint:"Punto de salida", fromPrev:"{d} km desde parada anterior", approxNote:"Ubicación aproximada (centro de la ciudad) · Google Maps navegará a la dirección exacta", openGmaps:"Abrir en Google Maps", sharePh:"El enlace para compartir aparecerá aquí", share:"Compartir", searching:"Buscando…", noResults:"Sin resultados — prueba otra calle", mapPreview:"Vista previa del mapa", stopsN:"{n} paradas", depotSaved:"Punto de salida guardado", writeOriginFirst:"Escribe primero un punto de salida", resetDone:"Ruta reiniciada", resetDoneDepot:"Ruta reiniciada (salida guardada)", linkCopied:"Enlace copiado", copyManual:"Copia el enlace del cuadro", optimizeFirst:"Optimiza una ruta primero", min2:"Añade al menos 2 paradas.", originFail:"No se pudo localizar el punto de salida. Revísalo y, si puedes, elígelo del desplegable.", someFailHead:"No se pudieron localizar estas direcciones y se omitirán:", continueRest:"¿Continuar con el resto?", farWarn:"Aviso: hay paradas muy alejadas entre sí (más de 100 km). Comprueba que el punto de salida y las paradas estén en la misma zona — es la causa habitual de un tiempo de ruta enorme.", deleteRoute:"Eliminar", routeFallback:"Ruta" },
-  it: { courierMode:"Modalit\u00e0 corriere", exitCourier:"Esci", courierOff:"Modalit\u00e0 corriere disattivata", shareQR:"Condividi QR", qrHint:"Scansiona il codice con un altro telefono per aprire questo percorso.", qrTooBig:"Il percorso \u00e8 troppo lungo per un QR. Usa \u201cCopia\u201d e invia il link.", qrNoLib:"Impossibile generare il QR. Usa \u201cCopia\u201d e invia il link.", install:"Installa app", installed:"Installata", installHint:"Per installare: apri il menu del browser e scegli \u201cAggiungi a schermata Home\u201d.", deliverShort:"Consegna", nextStop:"Prossima tappa", navBtn:"Naviga", routeDone:"Percorso completato!", resetDeliv:"Azzera consegne", markDone:"Segna come consegnata", settings:"Impostazioni", language:"Lingua", navigation:"Navigazione", done:"Fatto", navWith:"Naviga con", navGo:"Apri come destinazione", navHint:"Tocca una tappa per aprirla come destinazione dalla tua posizione. Condividendo invii l\u2019elenco in ordine con un link per tappa.", allRoutes:"Tutti", centerMap:"Centra mappa", navStops:"Tappe", navRoute:"Percorso", noRouteYet:"Prima ottimizza un percorso", fixMarked:"Questi indirizzi non sono stati trovati. Correggi quelli in rosso e riottimizza.", minimizeMap:"Riduci mappa", expandMap:"Mostra mappa", useGps:"La mia posizione (GPS)", useSavedDepot:"Usa partenza salvata", gpsLocating:"Localizzazione…", gpsDone:"Posizione rilevata", gpsDenied:"Permesso di posizione negato", gpsUnavailable:"Impossibile ottenere la posizione", depotLoaded:"Partenza caricata", balanceStops:"Bilancia le fermate", roadOpt:"Ottimizza su strada", leg:"Tratto", splitNote:"Percorso lungo: diviso in tratti per Google Maps. Apri ogni tratto in ordine.", pasteList:"Incolla elenco", pasteTitle:"Incolla indirizzi", pasteHint:"Un indirizzo per riga", cancel:"Annulla", add:"Aggiungi", mapNoteReal:"Percorso reale su strada · OpenStreetMap/OSRM", calcReal:"Calcolo percorso reale…", mapNote:"Anteprima in linea retta · il percorso reale lo traccia Google Maps", couriers:"Corrieri", courier:"Corriere", timeTotal:"Tempo stimato", stopsLabel:"Tappe", mailLabel:"E-mail", copyLink:"Copia", subtitle:"Ottimizza le tue consegne in pochi secondi", recent:"Percorsi recenti", recentEmpty:"Ancora nessun percorso. Ottimizzane uno e apparirà qui.", clearAll:"Cancella tutto", yourRoute:"Il tuo percorso", saveDepot:"Salva partenza", reset:"Reimposta", originPh:"Punto di partenza (magazzino, negozio...)", stopPh:"Indirizzo di consegna", addStop:"Aggiungi tappa", optimize:"Ottimizza percorso", recalc:"Ricalcola percorso", geocoding:"Geocodifica…", calcRoute:"Calcolo percorso…", optimizedRoute:"Percorso ottimizzato", distTotal:"Distanza totale", distSaved:"Distanza risparmiata", timeSaved:"Tempo risparmiato", unitKm:"km", unitMin:"min", startPoint:"Punto di partenza", fromPrev:"{d} km dalla tappa precedente", approxNote:"Posizione approssimativa (centro città) · Google Maps porterà all'indirizzo esatto", openGmaps:"Apri in Google Maps", sharePh:"Il link da condividere apparirà qui", share:"Condividi", searching:"Ricerca…", noResults:"Nessun risultato — prova un'altra via", mapPreview:"Anteprima mappa", stopsN:"{n} tappe", depotSaved:"Punto di partenza salvato", writeOriginFirst:"Inserisci prima un punto di partenza", resetDone:"Percorso reimpostato", resetDoneDepot:"Percorso reimpostato (partenza salvata)", linkCopied:"Link copiato", copyManual:"Copia il link dal riquadro", optimizeFirst:"Ottimizza prima un percorso", min2:"Aggiungi almeno 2 tappe.", originFail:"Impossibile localizzare il punto di partenza. Controllalo e, se puoi, selezionalo dall'elenco.", someFailHead:"Questi indirizzi non sono stati trovati e verranno saltati:", continueRest:"Continuare con gli altri?", farWarn:"Attenzione: alcune tappe sono molto distanti (oltre 100 km). Verifica che partenza e tappe siano nella stessa zona — è la causa abituale di un tempo di percorso enorme.", deleteRoute:"Elimina", routeFallback:"Percorso" },
-  en: { courierMode:"Courier mode", exitCourier:"Exit", courierOff:"Courier mode off", shareQR:"Share QR", qrHint:"Scan the code with another phone to open this route.", qrTooBig:"The route is too long for a QR code. Use \u201cCopy\u201d and send the link.", qrNoLib:"Couldn\u2019t generate the QR. Use \u201cCopy\u201d and send the link.", install:"Install app", installed:"Installed", installHint:"To install: open your browser menu and choose \u201cAdd to Home screen\u201d.", deliverShort:"Deliver", nextStop:"Next stop", navBtn:"Navigate", routeDone:"Route completed!", resetDeliv:"Reset deliveries", markDone:"Mark as delivered", settings:"Settings", language:"Language", navigation:"Navigation", done:"Done", navWith:"Navigate with", navGo:"Open as destination", navHint:"Tap a stop to open it as a destination from your location. Sharing sends the list in order with one link per stop.", allRoutes:"All", centerMap:"Center map", navStops:"Stops", navRoute:"Route", noRouteYet:"Optimize a route first", fixMarked:"We couldn't find these addresses. Fix the ones marked in red and optimize again.", minimizeMap:"Minimize map", expandMap:"Show map", useGps:"My location (GPS)", useSavedDepot:"Use saved start", gpsLocating:"Locating…", gpsDone:"Location detected", gpsDenied:"Location permission denied", gpsUnavailable:"Could not get location", depotLoaded:"Start loaded", balanceStops:"Balance stops", roadOpt:"Optimize by road", leg:"Leg", splitNote:"Long route: split into legs for Google Maps. Open each leg in order.", pasteList:"Paste list", pasteTitle:"Paste addresses", pasteHint:"One address per line", cancel:"Cancel", add:"Add", mapNoteReal:"Real road path · OpenStreetMap/OSRM", calcReal:"Calculating real route…", mapNote:"Straight-line preview · Google Maps draws the real route", couriers:"Couriers", courier:"Courier", timeTotal:"Estimated time", stopsLabel:"Stops", mailLabel:"Email", copyLink:"Copy", subtitle:"Optimize your deliveries in seconds", recent:"Recent routes", recentEmpty:"No routes yet. Optimize one and it'll show up here.", clearAll:"Clear all", yourRoute:"Your route", saveDepot:"Save start", reset:"Reset", originPh:"Start point (warehouse, shop...)", stopPh:"Delivery address", addStop:"Add stop", optimize:"Optimize route", recalc:"Recalculate route", geocoding:"Geocoding…", calcRoute:"Calculating route…", optimizedRoute:"Optimized route", distTotal:"Total distance", distSaved:"Distance saved", timeSaved:"Time saved", unitKm:"km", unitMin:"min", startPoint:"Start point", fromPrev:"{d} km from previous stop", approxNote:"Approximate location (city centre) · Google Maps will navigate to the exact address", openGmaps:"Open in Google Maps", sharePh:"The share link will appear here", share:"Share", searching:"Searching…", noResults:"No results — try another street", mapPreview:"Map preview", stopsN:"{n} stops", depotSaved:"Start point saved", writeOriginFirst:"Enter a start point first", resetDone:"Route reset", resetDoneDepot:"Route reset (start kept)", linkCopied:"Link copied", copyManual:"Copy the link from the box", optimizeFirst:"Optimize a route first", min2:"Add at least 2 stops.", originFail:"Couldn't locate the start point. Check it and pick it from the dropdown if you can.", someFailHead:"These addresses couldn't be located and will be skipped:", continueRest:"Continue with the rest?", farWarn:"Heads up: some stops are very far apart (over 100 km). Make sure the start point and stops are in the same area — that's the usual cause of a huge route time.", deleteRoute:"Delete", routeFallback:"Route" },
-  fr: { courierMode:"Mode livreur", exitCourier:"Quitter", courierOff:"Mode livreur d\u00e9sactiv\u00e9", shareQR:"Partager QR", qrHint:"Scannez le code avec un autre t\u00e9l\u00e9phone pour ouvrir cet itin\u00e9raire.", qrTooBig:"L\u2019itin\u00e9raire est trop long pour un QR. Utilisez \u00ab\u00a0Copier\u00a0\u00bb et envoyez le lien.", qrNoLib:"Impossible de g\u00e9n\u00e9rer le QR. Utilisez \u00ab\u00a0Copier\u00a0\u00bb et envoyez le lien.", install:"Installer l'app", installed:"Install\u00e9e", installHint:"Pour installer\u00a0: ouvrez le menu du navigateur et choisissez \u00ab\u00a0Ajouter \u00e0 l\u2019\u00e9cran d\u2019accueil\u00a0\u00bb.", deliverShort:"Livrer", nextStop:"Prochain arr\u00eat", navBtn:"Naviguer", routeDone:"Itin\u00e9raire termin\u00e9 !", resetDeliv:"R\u00e9initialiser les livraisons", markDone:"Marquer comme livr\u00e9e", settings:"R\u00e9glages", language:"Langue", navigation:"Navigation", done:"Termin\u00e9", navWith:"Naviguer avec", navGo:"Ouvrir comme destination", navHint:"Touchez un arr\u00eat pour l\u2019ouvrir comme destination depuis votre position. Le partage envoie la liste dans l\u2019ordre avec un lien par arr\u00eat.", allRoutes:"Tous", centerMap:"Centrer la carte", navStops:"Arrêts", navRoute:"Itinéraire", noRouteYet:"Optimise d'abord un itinéraire", fixMarked:"Ces adresses sont introuvables. Corrigez celles en rouge et relancez l'optimisation.", minimizeMap:"Réduire la carte", expandMap:"Afficher la carte", useGps:"Ma position (GPS)", useSavedDepot:"Utiliser le départ enregistré", gpsLocating:"Localisation…", gpsDone:"Position détectée", gpsDenied:"Autorisation de localisation refusée", gpsUnavailable:"Impossible d'obtenir la position", depotLoaded:"Départ chargé", balanceStops:"Équilibrer les arrêts", roadOpt:"Optimiser par la route", leg:"Étape", splitNote:"Itinéraire long : divisé en étapes pour Google Maps. Ouvre chaque étape dans l'ordre.", pasteList:"Coller liste", pasteTitle:"Coller des adresses", pasteHint:"Une adresse par ligne", cancel:"Annuler", add:"Ajouter", mapNoteReal:"Tracé routier réel · OpenStreetMap/OSRM", calcReal:"Calcul de l'itinéraire réel…", mapNote:"Aperçu en ligne droite · Google Maps trace l'itinéraire réel", couriers:"Livreurs", courier:"Livreur", timeTotal:"Temps estimé", stopsLabel:"Arrêts", mailLabel:"E-mail", copyLink:"Copier", subtitle:"Optimisez vos livraisons en quelques secondes", recent:"Itinéraires récents", recentEmpty:"Aucun itinéraire pour l'instant. Optimisez-en un, il apparaîtra ici.", clearAll:"Tout effacer", yourRoute:"Votre itinéraire", saveDepot:"Enregistrer le départ", reset:"Réinitialiser", originPh:"Point de départ (entrepôt, magasin...)", stopPh:"Adresse de livraison", addStop:"Ajouter un arrêt", optimize:"Optimiser l'itinéraire", recalc:"Recalculer l'itinéraire", geocoding:"Géocodage…", calcRoute:"Calcul de l'itinéraire…", optimizedRoute:"Itinéraire optimisé", distTotal:"Distance totale", distSaved:"Distance économisée", timeSaved:"Temps gagné", unitKm:"km", unitMin:"min", startPoint:"Point de départ", fromPrev:"{d} km depuis l'arrêt précédent", approxNote:"Position approximative (centre-ville) · Google Maps mènera à l'adresse exacte", openGmaps:"Ouvrir dans Google Maps", sharePh:"Le lien à partager apparaîtra ici", share:"Partager", searching:"Recherche…", noResults:"Aucun résultat — essayez une autre rue", mapPreview:"Aperçu de la carte", stopsN:"{n} arrêts", depotSaved:"Point de départ enregistré", writeOriginFirst:"Saisissez d'abord un point de départ", resetDone:"Itinéraire réinitialisé", resetDoneDepot:"Itinéraire réinitialisé (départ conservé)", linkCopied:"Lien copié", copyManual:"Copiez le lien du cadre", optimizeFirst:"Optimisez d'abord un itinéraire", min2:"Ajoutez au moins 2 arrêts.", originFail:"Impossible de localiser le point de départ. Vérifiez-le et choisissez-le dans la liste si possible.", someFailHead:"Ces adresses sont introuvables et seront ignorées :", continueRest:"Continuer avec le reste ?", farWarn:"Attention : certains arrêts sont très éloignés (plus de 100 km). Vérifiez que le départ et les arrêts sont dans la même zone — c'est la cause habituelle d'un temps d'itinéraire énorme.", deleteRoute:"Supprimer", routeFallback:"Itinéraire" },
-  de: { courierMode:"Fahrermodus", exitCourier:"Beenden", courierOff:"Fahrermodus deaktiviert", shareQR:"QR teilen", qrHint:"Scanne den Code mit einem anderen Handy, um diese Route zu \u00f6ffnen.", qrTooBig:"Die Route ist zu lang f\u00fcr einen QR-Code. Nutze \u201eKopieren\u201c und sende den Link.", qrNoLib:"QR konnte nicht erstellt werden. Nutze \u201eKopieren\u201c und sende den Link.", install:"App installieren", installed:"Installiert", installHint:"Zum Installieren: Browser-Men\u00fc \u00f6ffnen und \u201eZum Startbildschirm hinzuf\u00fcgen\u201c w\u00e4hlen.", deliverShort:"Erledigt", nextStop:"N\u00e4chster Stopp", navBtn:"Navigieren", routeDone:"Route abgeschlossen!", resetDeliv:"Lieferungen zur\u00fccksetzen", markDone:"Als geliefert markieren", settings:"Einstellungen", language:"Sprache", navigation:"Navigation", done:"Fertig", navWith:"Navigieren mit", navGo:"Als Ziel \u00f6ffnen", navHint:"Tippe auf einen Stopp, um ihn als Ziel von deinem Standort zu \u00f6ffnen. Beim Teilen wird die Liste der Reihe nach mit einem Link pro Stopp gesendet.", allRoutes:"Alle", centerMap:"Karte zentrieren", navStops:"Stopps", navRoute:"Route", noRouteYet:"Zuerst eine Route optimieren", fixMarked:"Diese Adressen wurden nicht gefunden. Korrigiere die rot markierten und optimiere erneut.", minimizeMap:"Karte verkleinern", expandMap:"Karte anzeigen", useGps:"Mein Standort (GPS)", useSavedDepot:"Gespeicherten Start verwenden", gpsLocating:"Wird geortet…", gpsDone:"Standort erkannt", gpsDenied:"Standortzugriff verweigert", gpsUnavailable:"Standort konnte nicht ermittelt werden", depotLoaded:"Start geladen", balanceStops:"Stopps ausgleichen", roadOpt:"Nach Straße optimieren", leg:"Abschnitt", splitNote:"Lange Route: in Abschnitte für Google Maps geteilt. Öffne jeden Abschnitt der Reihe nach.", pasteList:"Liste einfügen", pasteTitle:"Adressen einfügen", pasteHint:"Eine Adresse pro Zeile", cancel:"Abbrechen", add:"Hinzufügen", mapNoteReal:"Echte Straßenroute · OpenStreetMap/OSRM", calcReal:"Echte Route wird berechnet…", mapNote:"Vorschau in Luftlinie · Google Maps zeichnet die echte Route", couriers:"Fahrer", courier:"Fahrer", timeTotal:"Geschätzte Zeit", stopsLabel:"Stopps", mailLabel:"E-Mail", copyLink:"Kopieren", subtitle:"Optimiere deine Lieferungen in Sekunden", recent:"Letzte Routen", recentEmpty:"Noch keine Routen. Optimiere eine, dann erscheint sie hier.", clearAll:"Alle löschen", yourRoute:"Deine Route", saveDepot:"Start speichern", reset:"Zurücksetzen", originPh:"Startpunkt (Lager, Geschäft...)", stopPh:"Lieferadresse", addStop:"Stopp hinzufügen", optimize:"Route optimieren", recalc:"Route neu berechnen", geocoding:"Geokodierung…", calcRoute:"Route wird berechnet…", optimizedRoute:"Optimierte Route", distTotal:"Gesamtstrecke", distSaved:"Gesparte Strecke", timeSaved:"Gesparte Zeit", unitKm:"km", unitMin:"Min", startPoint:"Startpunkt", fromPrev:"{d} km vom vorherigen Stopp", approxNote:"Ungefährer Standort (Stadtzentrum) · Google Maps führt zur genauen Adresse", openGmaps:"In Google Maps öffnen", sharePh:"Der Teilen-Link erscheint hier", share:"Teilen", searching:"Suche…", noResults:"Keine Treffer — versuche eine andere Straße", mapPreview:"Kartenvorschau", stopsN:"{n} Stopps", depotSaved:"Startpunkt gespeichert", writeOriginFirst:"Gib zuerst einen Startpunkt ein", resetDone:"Route zurückgesetzt", resetDoneDepot:"Route zurückgesetzt (Start behalten)", linkCopied:"Link kopiert", copyManual:"Kopiere den Link aus dem Feld", optimizeFirst:"Optimiere zuerst eine Route", min2:"Füge mindestens 2 Stopps hinzu.", originFail:"Startpunkt konnte nicht gefunden werden. Prüfe ihn und wähle ihn möglichst aus der Liste.", someFailHead:"Diese Adressen wurden nicht gefunden und werden übersprungen:", continueRest:"Mit den übrigen fortfahren?", farWarn:"Hinweis: Einige Stopps liegen sehr weit auseinander (über 100 km). Stelle sicher, dass Start und Stopps in derselben Gegend liegen — das ist die übliche Ursache für eine riesige Routenzeit.", deleteRoute:"Löschen", routeFallback:"Route" },
-  pt: { courierMode:"Modo estafeta", exitCourier:"Sair", courierOff:"Modo estafeta desativado", shareQR:"Partilhar QR", qrHint:"Digitaliza o c\u00f3digo com outro telem\u00f3vel para abrir esta rota.", qrTooBig:"A rota \u00e9 demasiado longa para um QR. Usa \u201cCopiar\u201d e envia o link.", qrNoLib:"N\u00e3o foi poss\u00edvel gerar o QR. Usa \u201cCopiar\u201d e envia o link.", install:"Instalar app", installed:"Instalada", installHint:"Para instalar: abre o menu do navegador e escolhe \u201cAdicionar ao ecr\u00e3 principal\u201d.", deliverShort:"Entregar", nextStop:"Pr\u00f3xima paragem", navBtn:"Navegar", routeDone:"Rota conclu\u00edda!", resetDeliv:"Reiniciar entregas", markDone:"Marcar como entregue", settings:"Defini\u00e7\u00f5es", language:"Idioma", navigation:"Navega\u00e7\u00e3o", done:"Conclu\u00eddo", navWith:"Navegar com", navGo:"Abrir como destino", navHint:"Toca numa paragem para a abrir como destino a partir da tua localiza\u00e7\u00e3o. Ao partilhar envia a lista por ordem com um link por paragem.", allRoutes:"Todos", centerMap:"Centrar mapa", navStops:"Paragens", navRoute:"Rota", noRouteYet:"Otimiza uma rota primeiro", fixMarked:"Não encontrámos estes endereços. Corrige os marcados a vermelho e otimiza de novo.", minimizeMap:"Minimizar mapa", expandMap:"Mostrar mapa", useGps:"A minha localização (GPS)", useSavedDepot:"Usar partida guardada", gpsLocating:"A localizar…", gpsDone:"Localização detetada", gpsDenied:"Permissão de localização negada", gpsUnavailable:"Não foi possível obter a localização", depotLoaded:"Partida carregada", balanceStops:"Equilibrar paragens", roadOpt:"Otimizar por estrada", leg:"Troço", splitNote:"Rota longa: dividida em troços para o Google Maps. Abre cada troço por ordem.", pasteList:"Colar lista", pasteTitle:"Colar endereços", pasteHint:"Um endereço por linha", cancel:"Cancelar", add:"Adicionar", mapNoteReal:"Traçado real por estrada · OpenStreetMap/OSRM", calcReal:"A calcular rota real…", mapNote:"Pré-visualização em linha reta · o Google Maps traça a rota real", couriers:"Estafetas", courier:"Estafeta", timeTotal:"Tempo estimado", stopsLabel:"Paragens", mailLabel:"E-mail", copyLink:"Copiar", subtitle:"Otimize as suas entregas em segundos", recent:"Rotas recentes", recentEmpty:"Ainda não há rotas. Otimize uma e aparecerá aqui.", clearAll:"Limpar tudo", yourRoute:"A sua rota", saveDepot:"Guardar partida", reset:"Reiniciar", originPh:"Ponto de partida (armazém, loja...)", stopPh:"Endereço de entrega", addStop:"Adicionar paragem", optimize:"Otimizar rota", recalc:"Recalcular rota", geocoding:"A geocodificar…", calcRoute:"A calcular rota…", optimizedRoute:"Rota otimizada", distTotal:"Distância total", distSaved:"Distância poupada", timeSaved:"Tempo poupado", unitKm:"km", unitMin:"min", startPoint:"Ponto de partida", fromPrev:"{d} km desde a paragem anterior", approxNote:"Localização aproximada (centro da cidade) · O Google Maps levará ao endereço exato", openGmaps:"Abrir no Google Maps", sharePh:"O link para partilhar aparecerá aqui", share:"Partilhar", searching:"A procurar…", noResults:"Sem resultados — tente outra rua", mapPreview:"Pré-visualização do mapa", stopsN:"{n} paragens", depotSaved:"Ponto de partida guardado", writeOriginFirst:"Escreva primeiro um ponto de partida", resetDone:"Rota reiniciada", resetDoneDepot:"Rota reiniciada (partida guardada)", linkCopied:"Link copiado", copyManual:"Copie o link da caixa", optimizeFirst:"Otimize uma rota primeiro", min2:"Adicione pelo menos 2 paragens.", originFail:"Não foi possível localizar o ponto de partida. Verifique-o e, se possível, escolha-o da lista.", someFailHead:"Estes endereços não foram encontrados e serão ignorados:", continueRest:"Continuar com os restantes?", farWarn:"Aviso: algumas paragens estão muito distantes (mais de 100 km). Verifique se a partida e as paragens estão na mesma zona — é a causa habitual de um tempo de rota enorme.", deleteRoute:"Eliminar", routeFallback:"Rota" },
+  es: { numPh:"N\u00ba", courierMode:"Modo repartidor", exitCourier:"Salir", courierOff:"Modo repartidor desactivado", shareQR:"Compartir QR", qrHint:"Escanea el c\u00f3digo con otro m\u00f3vil para abrir esta ruta.", qrTooBig:"La ruta es muy larga para un QR. Usa \u201cCopiar\u201d y env\u00eda el enlace.", qrNoLib:"No se pudo generar el QR. Usa \u201cCopiar\u201d y env\u00eda el enlace.", install:"Instalar app", installed:"Instalada", installHint:"Para instalar: abre el men\u00fa del navegador y elige \u201cA\u00f1adir a pantalla de inicio\u201d.", deliverShort:"Entregar", nextStop:"Siguiente parada", navBtn:"Navegar", routeDone:"\u00a1Ruta completada!", resetDeliv:"Reiniciar entregas", markDone:"Marcar como entregada", settings:"Ajustes", language:"Idioma", navigation:"Navegaci\u00f3n", done:"Listo", navWith:"Navegar con", navGo:"Abrir como destino", navHint:"Toca cada parada para abrirla como destino desde tu ubicación. Al compartir se envía la lista en orden con un enlace por parada.", allRoutes:"Todos", centerMap:"Centrar mapa", navStops:"Paradas", navRoute:"Ruta", noRouteYet:"Optimiza una ruta primero", fixMarked:"No encontramos estas direcciones. Corrige las marcadas en rojo y vuelve a optimizar.", minimizeMap:"Minimizar mapa", expandMap:"Mostrar mapa", useGps:"Mi ubicación (GPS)", useSavedDepot:"Usar salida guardada", gpsLocating:"Localizando…", gpsDone:"Ubicación detectada", gpsDenied:"Permiso de ubicación denegado", gpsUnavailable:"No se pudo obtener la ubicación", depotLoaded:"Salida cargada", balanceStops:"Equilibrar paradas", roadOpt:"Optimizar por carretera", leg:"Tramo", splitNote:"Ruta larga: dividida en tramos para Google Maps. Abre cada tramo en orden.", pasteList:"Pegar lista", pasteTitle:"Pegar direcciones", pasteHint:"Una dirección por línea", cancel:"Cancelar", add:"Añadir", mapNoteReal:"Trazado real por carretera · OpenStreetMap/OSRM", calcReal:"Calculando ruta real…", mapNote:"Vista previa en línea recta · la ruta real la traza Google Maps", couriers:"Repartidores", courier:"Repartidor", timeTotal:"Tiempo estimado", stopsLabel:"Paradas", mailLabel:"Correo", copyLink:"Copiar", subtitle:"Optimiza tus repartos en segundos", recent:"Rutas recientes", recentEmpty:"Aún no hay rutas. Optimiza una y aparecerá aquí.", clearAll:"Borrar todo", yourRoute:"Tu ruta", saveDepot:"Guardar salida", reset:"Reiniciar", originPh:"Punto de salida (almacén, tienda...)", stopPh:"Dirección de entrega", addStop:"Añadir parada", optimize:"Optimizar ruta", recalc:"Recalcular ruta", geocoding:"Geocodificando…", calcRoute:"Calculando ruta…", optimizedRoute:"Ruta optimizada", distTotal:"Distancia total", distSaved:"Distancia ahorrada", timeSaved:"Tiempo ahorrado", unitKm:"km", unitMin:"min", startPoint:"Punto de salida", fromPrev:"{d} km desde parada anterior", approxNote:"Ubicación aproximada (centro de la ciudad) · Google Maps navegará a la dirección exacta", openGmaps:"Abrir en Google Maps", sharePh:"El enlace para compartir aparecerá aquí", share:"Compartir", searching:"Buscando…", noResults:"Sin resultados — prueba otra calle", mapPreview:"Vista previa del mapa", stopsN:"{n} paradas", depotSaved:"Punto de salida guardado", writeOriginFirst:"Escribe primero un punto de salida", resetDone:"Ruta reiniciada", resetDoneDepot:"Ruta reiniciada (salida guardada)", linkCopied:"Enlace copiado", copyManual:"Copia el enlace del cuadro", optimizeFirst:"Optimiza una ruta primero", min2:"Añade al menos 2 paradas.", originFail:"No se pudo localizar el punto de salida. Revísalo y, si puedes, elígelo del desplegable.", someFailHead:"No se pudieron localizar estas direcciones y se omitirán:", continueRest:"¿Continuar con el resto?", farWarn:"Aviso: hay paradas muy alejadas entre sí (más de 100 km). Comprueba que el punto de salida y las paradas estén en la misma zona — es la causa habitual de un tiempo de ruta enorme.", deleteRoute:"Eliminar", routeFallback:"Ruta" },
+  it: { numPh:"N.", courierMode:"Modalit\u00e0 corriere", exitCourier:"Esci", courierOff:"Modalit\u00e0 corriere disattivata", shareQR:"Condividi QR", qrHint:"Scansiona il codice con un altro telefono per aprire questo percorso.", qrTooBig:"Il percorso \u00e8 troppo lungo per un QR. Usa \u201cCopia\u201d e invia il link.", qrNoLib:"Impossibile generare il QR. Usa \u201cCopia\u201d e invia il link.", install:"Installa app", installed:"Installata", installHint:"Per installare: apri il menu del browser e scegli \u201cAggiungi a schermata Home\u201d.", deliverShort:"Consegna", nextStop:"Prossima tappa", navBtn:"Naviga", routeDone:"Percorso completato!", resetDeliv:"Azzera consegne", markDone:"Segna come consegnata", settings:"Impostazioni", language:"Lingua", navigation:"Navigazione", done:"Fatto", navWith:"Naviga con", navGo:"Apri come destinazione", navHint:"Tocca una tappa per aprirla come destinazione dalla tua posizione. Condividendo invii l\u2019elenco in ordine con un link per tappa.", allRoutes:"Tutti", centerMap:"Centra mappa", navStops:"Tappe", navRoute:"Percorso", noRouteYet:"Prima ottimizza un percorso", fixMarked:"Questi indirizzi non sono stati trovati. Correggi quelli in rosso e riottimizza.", minimizeMap:"Riduci mappa", expandMap:"Mostra mappa", useGps:"La mia posizione (GPS)", useSavedDepot:"Usa partenza salvata", gpsLocating:"Localizzazione…", gpsDone:"Posizione rilevata", gpsDenied:"Permesso di posizione negato", gpsUnavailable:"Impossibile ottenere la posizione", depotLoaded:"Partenza caricata", balanceStops:"Bilancia le fermate", roadOpt:"Ottimizza su strada", leg:"Tratto", splitNote:"Percorso lungo: diviso in tratti per Google Maps. Apri ogni tratto in ordine.", pasteList:"Incolla elenco", pasteTitle:"Incolla indirizzi", pasteHint:"Un indirizzo per riga", cancel:"Annulla", add:"Aggiungi", mapNoteReal:"Percorso reale su strada · OpenStreetMap/OSRM", calcReal:"Calcolo percorso reale…", mapNote:"Anteprima in linea retta · il percorso reale lo traccia Google Maps", couriers:"Corrieri", courier:"Corriere", timeTotal:"Tempo stimato", stopsLabel:"Tappe", mailLabel:"E-mail", copyLink:"Copia", subtitle:"Ottimizza le tue consegne in pochi secondi", recent:"Percorsi recenti", recentEmpty:"Ancora nessun percorso. Ottimizzane uno e apparirà qui.", clearAll:"Cancella tutto", yourRoute:"Il tuo percorso", saveDepot:"Salva partenza", reset:"Reimposta", originPh:"Punto di partenza (magazzino, negozio...)", stopPh:"Indirizzo di consegna", addStop:"Aggiungi tappa", optimize:"Ottimizza percorso", recalc:"Ricalcola percorso", geocoding:"Geocodifica…", calcRoute:"Calcolo percorso…", optimizedRoute:"Percorso ottimizzato", distTotal:"Distanza totale", distSaved:"Distanza risparmiata", timeSaved:"Tempo risparmiato", unitKm:"km", unitMin:"min", startPoint:"Punto di partenza", fromPrev:"{d} km dalla tappa precedente", approxNote:"Posizione approssimativa (centro città) · Google Maps porterà all'indirizzo esatto", openGmaps:"Apri in Google Maps", sharePh:"Il link da condividere apparirà qui", share:"Condividi", searching:"Ricerca…", noResults:"Nessun risultato — prova un'altra via", mapPreview:"Anteprima mappa", stopsN:"{n} tappe", depotSaved:"Punto di partenza salvato", writeOriginFirst:"Inserisci prima un punto di partenza", resetDone:"Percorso reimpostato", resetDoneDepot:"Percorso reimpostato (partenza salvata)", linkCopied:"Link copiato", copyManual:"Copia il link dal riquadro", optimizeFirst:"Ottimizza prima un percorso", min2:"Aggiungi almeno 2 tappe.", originFail:"Impossibile localizzare il punto di partenza. Controllalo e, se puoi, selezionalo dall'elenco.", someFailHead:"Questi indirizzi non sono stati trovati e verranno saltati:", continueRest:"Continuare con gli altri?", farWarn:"Attenzione: alcune tappe sono molto distanti (oltre 100 km). Verifica che partenza e tappe siano nella stessa zona — è la causa abituale di un tempo di percorso enorme.", deleteRoute:"Elimina", routeFallback:"Percorso" },
+  en: { numPh:"No.", courierMode:"Courier mode", exitCourier:"Exit", courierOff:"Courier mode off", shareQR:"Share QR", qrHint:"Scan the code with another phone to open this route.", qrTooBig:"The route is too long for a QR code. Use \u201cCopy\u201d and send the link.", qrNoLib:"Couldn\u2019t generate the QR. Use \u201cCopy\u201d and send the link.", install:"Install app", installed:"Installed", installHint:"To install: open your browser menu and choose \u201cAdd to Home screen\u201d.", deliverShort:"Deliver", nextStop:"Next stop", navBtn:"Navigate", routeDone:"Route completed!", resetDeliv:"Reset deliveries", markDone:"Mark as delivered", settings:"Settings", language:"Language", navigation:"Navigation", done:"Done", navWith:"Navigate with", navGo:"Open as destination", navHint:"Tap a stop to open it as a destination from your location. Sharing sends the list in order with one link per stop.", allRoutes:"All", centerMap:"Center map", navStops:"Stops", navRoute:"Route", noRouteYet:"Optimize a route first", fixMarked:"We couldn't find these addresses. Fix the ones marked in red and optimize again.", minimizeMap:"Minimize map", expandMap:"Show map", useGps:"My location (GPS)", useSavedDepot:"Use saved start", gpsLocating:"Locating…", gpsDone:"Location detected", gpsDenied:"Location permission denied", gpsUnavailable:"Could not get location", depotLoaded:"Start loaded", balanceStops:"Balance stops", roadOpt:"Optimize by road", leg:"Leg", splitNote:"Long route: split into legs for Google Maps. Open each leg in order.", pasteList:"Paste list", pasteTitle:"Paste addresses", pasteHint:"One address per line", cancel:"Cancel", add:"Add", mapNoteReal:"Real road path · OpenStreetMap/OSRM", calcReal:"Calculating real route…", mapNote:"Straight-line preview · Google Maps draws the real route", couriers:"Couriers", courier:"Courier", timeTotal:"Estimated time", stopsLabel:"Stops", mailLabel:"Email", copyLink:"Copy", subtitle:"Optimize your deliveries in seconds", recent:"Recent routes", recentEmpty:"No routes yet. Optimize one and it'll show up here.", clearAll:"Clear all", yourRoute:"Your route", saveDepot:"Save start", reset:"Reset", originPh:"Start point (warehouse, shop...)", stopPh:"Delivery address", addStop:"Add stop", optimize:"Optimize route", recalc:"Recalculate route", geocoding:"Geocoding…", calcRoute:"Calculating route…", optimizedRoute:"Optimized route", distTotal:"Total distance", distSaved:"Distance saved", timeSaved:"Time saved", unitKm:"km", unitMin:"min", startPoint:"Start point", fromPrev:"{d} km from previous stop", approxNote:"Approximate location (city centre) · Google Maps will navigate to the exact address", openGmaps:"Open in Google Maps", sharePh:"The share link will appear here", share:"Share", searching:"Searching…", noResults:"No results — try another street", mapPreview:"Map preview", stopsN:"{n} stops", depotSaved:"Start point saved", writeOriginFirst:"Enter a start point first", resetDone:"Route reset", resetDoneDepot:"Route reset (start kept)", linkCopied:"Link copied", copyManual:"Copy the link from the box", optimizeFirst:"Optimize a route first", min2:"Add at least 2 stops.", originFail:"Couldn't locate the start point. Check it and pick it from the dropdown if you can.", someFailHead:"These addresses couldn't be located and will be skipped:", continueRest:"Continue with the rest?", farWarn:"Heads up: some stops are very far apart (over 100 km). Make sure the start point and stops are in the same area — that's the usual cause of a huge route time.", deleteRoute:"Delete", routeFallback:"Route" },
+  fr: { numPh:"N\u00b0", courierMode:"Mode livreur", exitCourier:"Quitter", courierOff:"Mode livreur d\u00e9sactiv\u00e9", shareQR:"Partager QR", qrHint:"Scannez le code avec un autre t\u00e9l\u00e9phone pour ouvrir cet itin\u00e9raire.", qrTooBig:"L\u2019itin\u00e9raire est trop long pour un QR. Utilisez \u00ab\u00a0Copier\u00a0\u00bb et envoyez le lien.", qrNoLib:"Impossible de g\u00e9n\u00e9rer le QR. Utilisez \u00ab\u00a0Copier\u00a0\u00bb et envoyez le lien.", install:"Installer l'app", installed:"Install\u00e9e", installHint:"Pour installer\u00a0: ouvrez le menu du navigateur et choisissez \u00ab\u00a0Ajouter \u00e0 l\u2019\u00e9cran d\u2019accueil\u00a0\u00bb.", deliverShort:"Livrer", nextStop:"Prochain arr\u00eat", navBtn:"Naviguer", routeDone:"Itin\u00e9raire termin\u00e9 !", resetDeliv:"R\u00e9initialiser les livraisons", markDone:"Marquer comme livr\u00e9e", settings:"R\u00e9glages", language:"Langue", navigation:"Navigation", done:"Termin\u00e9", navWith:"Naviguer avec", navGo:"Ouvrir comme destination", navHint:"Touchez un arr\u00eat pour l\u2019ouvrir comme destination depuis votre position. Le partage envoie la liste dans l\u2019ordre avec un lien par arr\u00eat.", allRoutes:"Tous", centerMap:"Centrer la carte", navStops:"Arrêts", navRoute:"Itinéraire", noRouteYet:"Optimise d'abord un itinéraire", fixMarked:"Ces adresses sont introuvables. Corrigez celles en rouge et relancez l'optimisation.", minimizeMap:"Réduire la carte", expandMap:"Afficher la carte", useGps:"Ma position (GPS)", useSavedDepot:"Utiliser le départ enregistré", gpsLocating:"Localisation…", gpsDone:"Position détectée", gpsDenied:"Autorisation de localisation refusée", gpsUnavailable:"Impossible d'obtenir la position", depotLoaded:"Départ chargé", balanceStops:"Équilibrer les arrêts", roadOpt:"Optimiser par la route", leg:"Étape", splitNote:"Itinéraire long : divisé en étapes pour Google Maps. Ouvre chaque étape dans l'ordre.", pasteList:"Coller liste", pasteTitle:"Coller des adresses", pasteHint:"Une adresse par ligne", cancel:"Annuler", add:"Ajouter", mapNoteReal:"Tracé routier réel · OpenStreetMap/OSRM", calcReal:"Calcul de l'itinéraire réel…", mapNote:"Aperçu en ligne droite · Google Maps trace l'itinéraire réel", couriers:"Livreurs", courier:"Livreur", timeTotal:"Temps estimé", stopsLabel:"Arrêts", mailLabel:"E-mail", copyLink:"Copier", subtitle:"Optimisez vos livraisons en quelques secondes", recent:"Itinéraires récents", recentEmpty:"Aucun itinéraire pour l'instant. Optimisez-en un, il apparaîtra ici.", clearAll:"Tout effacer", yourRoute:"Votre itinéraire", saveDepot:"Enregistrer le départ", reset:"Réinitialiser", originPh:"Point de départ (entrepôt, magasin...)", stopPh:"Adresse de livraison", addStop:"Ajouter un arrêt", optimize:"Optimiser l'itinéraire", recalc:"Recalculer l'itinéraire", geocoding:"Géocodage…", calcRoute:"Calcul de l'itinéraire…", optimizedRoute:"Itinéraire optimisé", distTotal:"Distance totale", distSaved:"Distance économisée", timeSaved:"Temps gagné", unitKm:"km", unitMin:"min", startPoint:"Point de départ", fromPrev:"{d} km depuis l'arrêt précédent", approxNote:"Position approximative (centre-ville) · Google Maps mènera à l'adresse exacte", openGmaps:"Ouvrir dans Google Maps", sharePh:"Le lien à partager apparaîtra ici", share:"Partager", searching:"Recherche…", noResults:"Aucun résultat — essayez une autre rue", mapPreview:"Aperçu de la carte", stopsN:"{n} arrêts", depotSaved:"Point de départ enregistré", writeOriginFirst:"Saisissez d'abord un point de départ", resetDone:"Itinéraire réinitialisé", resetDoneDepot:"Itinéraire réinitialisé (départ conservé)", linkCopied:"Lien copié", copyManual:"Copiez le lien du cadre", optimizeFirst:"Optimisez d'abord un itinéraire", min2:"Ajoutez au moins 2 arrêts.", originFail:"Impossible de localiser le point de départ. Vérifiez-le et choisissez-le dans la liste si possible.", someFailHead:"Ces adresses sont introuvables et seront ignorées :", continueRest:"Continuer avec le reste ?", farWarn:"Attention : certains arrêts sont très éloignés (plus de 100 km). Vérifiez que le départ et les arrêts sont dans la même zone — c'est la cause habituelle d'un temps d'itinéraire énorme.", deleteRoute:"Supprimer", routeFallback:"Itinéraire" },
+  de: { numPh:"Nr.", courierMode:"Fahrermodus", exitCourier:"Beenden", courierOff:"Fahrermodus deaktiviert", shareQR:"QR teilen", qrHint:"Scanne den Code mit einem anderen Handy, um diese Route zu \u00f6ffnen.", qrTooBig:"Die Route ist zu lang f\u00fcr einen QR-Code. Nutze \u201eKopieren\u201c und sende den Link.", qrNoLib:"QR konnte nicht erstellt werden. Nutze \u201eKopieren\u201c und sende den Link.", install:"App installieren", installed:"Installiert", installHint:"Zum Installieren: Browser-Men\u00fc \u00f6ffnen und \u201eZum Startbildschirm hinzuf\u00fcgen\u201c w\u00e4hlen.", deliverShort:"Erledigt", nextStop:"N\u00e4chster Stopp", navBtn:"Navigieren", routeDone:"Route abgeschlossen!", resetDeliv:"Lieferungen zur\u00fccksetzen", markDone:"Als geliefert markieren", settings:"Einstellungen", language:"Sprache", navigation:"Navigation", done:"Fertig", navWith:"Navigieren mit", navGo:"Als Ziel \u00f6ffnen", navHint:"Tippe auf einen Stopp, um ihn als Ziel von deinem Standort zu \u00f6ffnen. Beim Teilen wird die Liste der Reihe nach mit einem Link pro Stopp gesendet.", allRoutes:"Alle", centerMap:"Karte zentrieren", navStops:"Stopps", navRoute:"Route", noRouteYet:"Zuerst eine Route optimieren", fixMarked:"Diese Adressen wurden nicht gefunden. Korrigiere die rot markierten und optimiere erneut.", minimizeMap:"Karte verkleinern", expandMap:"Karte anzeigen", useGps:"Mein Standort (GPS)", useSavedDepot:"Gespeicherten Start verwenden", gpsLocating:"Wird geortet…", gpsDone:"Standort erkannt", gpsDenied:"Standortzugriff verweigert", gpsUnavailable:"Standort konnte nicht ermittelt werden", depotLoaded:"Start geladen", balanceStops:"Stopps ausgleichen", roadOpt:"Nach Straße optimieren", leg:"Abschnitt", splitNote:"Lange Route: in Abschnitte für Google Maps geteilt. Öffne jeden Abschnitt der Reihe nach.", pasteList:"Liste einfügen", pasteTitle:"Adressen einfügen", pasteHint:"Eine Adresse pro Zeile", cancel:"Abbrechen", add:"Hinzufügen", mapNoteReal:"Echte Straßenroute · OpenStreetMap/OSRM", calcReal:"Echte Route wird berechnet…", mapNote:"Vorschau in Luftlinie · Google Maps zeichnet die echte Route", couriers:"Fahrer", courier:"Fahrer", timeTotal:"Geschätzte Zeit", stopsLabel:"Stopps", mailLabel:"E-Mail", copyLink:"Kopieren", subtitle:"Optimiere deine Lieferungen in Sekunden", recent:"Letzte Routen", recentEmpty:"Noch keine Routen. Optimiere eine, dann erscheint sie hier.", clearAll:"Alle löschen", yourRoute:"Deine Route", saveDepot:"Start speichern", reset:"Zurücksetzen", originPh:"Startpunkt (Lager, Geschäft...)", stopPh:"Lieferadresse", addStop:"Stopp hinzufügen", optimize:"Route optimieren", recalc:"Route neu berechnen", geocoding:"Geokodierung…", calcRoute:"Route wird berechnet…", optimizedRoute:"Optimierte Route", distTotal:"Gesamtstrecke", distSaved:"Gesparte Strecke", timeSaved:"Gesparte Zeit", unitKm:"km", unitMin:"Min", startPoint:"Startpunkt", fromPrev:"{d} km vom vorherigen Stopp", approxNote:"Ungefährer Standort (Stadtzentrum) · Google Maps führt zur genauen Adresse", openGmaps:"In Google Maps öffnen", sharePh:"Der Teilen-Link erscheint hier", share:"Teilen", searching:"Suche…", noResults:"Keine Treffer — versuche eine andere Straße", mapPreview:"Kartenvorschau", stopsN:"{n} Stopps", depotSaved:"Startpunkt gespeichert", writeOriginFirst:"Gib zuerst einen Startpunkt ein", resetDone:"Route zurückgesetzt", resetDoneDepot:"Route zurückgesetzt (Start behalten)", linkCopied:"Link kopiert", copyManual:"Kopiere den Link aus dem Feld", optimizeFirst:"Optimiere zuerst eine Route", min2:"Füge mindestens 2 Stopps hinzu.", originFail:"Startpunkt konnte nicht gefunden werden. Prüfe ihn und wähle ihn möglichst aus der Liste.", someFailHead:"Diese Adressen wurden nicht gefunden und werden übersprungen:", continueRest:"Mit den übrigen fortfahren?", farWarn:"Hinweis: Einige Stopps liegen sehr weit auseinander (über 100 km). Stelle sicher, dass Start und Stopps in derselben Gegend liegen — das ist die übliche Ursache für eine riesige Routenzeit.", deleteRoute:"Löschen", routeFallback:"Route" },
+  pt: { numPh:"N.\u00ba", courierMode:"Modo estafeta", exitCourier:"Sair", courierOff:"Modo estafeta desativado", shareQR:"Partilhar QR", qrHint:"Digitaliza o c\u00f3digo com outro telem\u00f3vel para abrir esta rota.", qrTooBig:"A rota \u00e9 demasiado longa para um QR. Usa \u201cCopiar\u201d e envia o link.", qrNoLib:"N\u00e3o foi poss\u00edvel gerar o QR. Usa \u201cCopiar\u201d e envia o link.", install:"Instalar app", installed:"Instalada", installHint:"Para instalar: abre o menu do navegador e escolhe \u201cAdicionar ao ecr\u00e3 principal\u201d.", deliverShort:"Entregar", nextStop:"Pr\u00f3xima paragem", navBtn:"Navegar", routeDone:"Rota conclu\u00edda!", resetDeliv:"Reiniciar entregas", markDone:"Marcar como entregue", settings:"Defini\u00e7\u00f5es", language:"Idioma", navigation:"Navega\u00e7\u00e3o", done:"Conclu\u00eddo", navWith:"Navegar com", navGo:"Abrir como destino", navHint:"Toca numa paragem para a abrir como destino a partir da tua localiza\u00e7\u00e3o. Ao partilhar envia a lista por ordem com um link por paragem.", allRoutes:"Todos", centerMap:"Centrar mapa", navStops:"Paragens", navRoute:"Rota", noRouteYet:"Otimiza uma rota primeiro", fixMarked:"Não encontrámos estes endereços. Corrige os marcados a vermelho e otimiza de novo.", minimizeMap:"Minimizar mapa", expandMap:"Mostrar mapa", useGps:"A minha localização (GPS)", useSavedDepot:"Usar partida guardada", gpsLocating:"A localizar…", gpsDone:"Localização detetada", gpsDenied:"Permissão de localização negada", gpsUnavailable:"Não foi possível obter a localização", depotLoaded:"Partida carregada", balanceStops:"Equilibrar paragens", roadOpt:"Otimizar por estrada", leg:"Troço", splitNote:"Rota longa: dividida em troços para o Google Maps. Abre cada troço por ordem.", pasteList:"Colar lista", pasteTitle:"Colar endereços", pasteHint:"Um endereço por linha", cancel:"Cancelar", add:"Adicionar", mapNoteReal:"Traçado real por estrada · OpenStreetMap/OSRM", calcReal:"A calcular rota real…", mapNote:"Pré-visualização em linha reta · o Google Maps traça a rota real", couriers:"Estafetas", courier:"Estafeta", timeTotal:"Tempo estimado", stopsLabel:"Paragens", mailLabel:"E-mail", copyLink:"Copiar", subtitle:"Otimize as suas entregas em segundos", recent:"Rotas recentes", recentEmpty:"Ainda não há rotas. Otimize uma e aparecerá aqui.", clearAll:"Limpar tudo", yourRoute:"A sua rota", saveDepot:"Guardar partida", reset:"Reiniciar", originPh:"Ponto de partida (armazém, loja...)", stopPh:"Endereço de entrega", addStop:"Adicionar paragem", optimize:"Otimizar rota", recalc:"Recalcular rota", geocoding:"A geocodificar…", calcRoute:"A calcular rota…", optimizedRoute:"Rota otimizada", distTotal:"Distância total", distSaved:"Distância poupada", timeSaved:"Tempo poupado", unitKm:"km", unitMin:"min", startPoint:"Ponto de partida", fromPrev:"{d} km desde a paragem anterior", approxNote:"Localização aproximada (centro da cidade) · O Google Maps levará ao endereço exato", openGmaps:"Abrir no Google Maps", sharePh:"O link para partilhar aparecerá aqui", share:"Partilhar", searching:"A procurar…", noResults:"Sem resultados — tente outra rua", mapPreview:"Pré-visualização do mapa", stopsN:"{n} paragens", depotSaved:"Ponto de partida guardado", writeOriginFirst:"Escreva primeiro um ponto de partida", resetDone:"Rota reiniciada", resetDoneDepot:"Rota reiniciada (partida guardada)", linkCopied:"Link copiado", copyManual:"Copie o link da caixa", optimizeFirst:"Otimize uma rota primeiro", min2:"Adicione pelo menos 2 paragens.", originFail:"Não foi possível localizar o ponto de partida. Verifique-o e, se possível, escolha-o da lista.", someFailHead:"Estes endereços não foram encontrados e serão ignorados:", continueRest:"Continuar com os restantes?", farWarn:"Aviso: algumas paragens estão muito distantes (mais de 100 km). Verifique se a partida e as paragens estão na mesma zona — é a causa habitual de um tempo de rota enorme.", deleteRoute:"Eliminar", routeFallback:"Rota" },
 };
 let lang = 'es';
 function t(key, vars){
@@ -738,8 +745,13 @@ function serializeResult(lr){
 
 function snapshot(){
   const o = document.getElementById('origin');
-  const stops = Array.from(document.querySelectorAll('.stop-input')).map(i => ({ v: i.value, c: i._coord || null }));
-  return { origin: { v: o.value, c: o._coord || null }, stops, couriers, balanceStops, result: serializeResult(lastResult) };
+  const stops = Array.from(document.querySelectorAll('#stops-container .stop-row')).map(row => {
+    const i = row.querySelector('.stop-input');
+    const nEl = row.querySelector('.stop-num');
+    return { v: i.value, c: i._coord || null, num: nEl ? nEl.value.trim() : '' };
+  });
+  const onum = document.getElementById('origin-num');
+  return { origin: { v: o.value, c: o._coord || null, num: onum ? onum.value.trim() : '' }, stops, couriers, balanceStops, result: serializeResult(lastResult) };
 }
 
 function setCouriers(delta){
@@ -796,7 +808,8 @@ async function saveDepot(){
   if (!v){ toast(t('writeOriginFirst')); return; }
   let c = o._coord;
   if (!c){ const g = await geocode(v); if (g) c = g; }
-  lsSet(LS_DEPOT, { v, c: c || null });
+  const num = (document.getElementById('origin-num') || {}).value || '';
+  lsSet(LS_DEPOT, { v, c: c || null, num: num.trim() });
   if (c) searchBias = { lat: c.lat, lon: c.lng };
   updateDepotIcon();
   toast(t('depotSaved'));
@@ -813,6 +826,8 @@ function useSavedDepot(){
   const o = document.getElementById('origin');
   o.value = depot.v || '';
   o._coord = depot.c || null;
+  setOriginNum(depot.num);
+  syncOrigin();
   if (depot.c) searchBias = { lat: depot.c.lat, lon: depot.c.lng };
   saveState();
   toast(t('depotLoaded'));
@@ -854,6 +869,7 @@ function useGps(){
     // Si no hay dirección, usamos "lat,lng" (Google Maps lo acepta como origen).
     o.value = addr || `${lat.toFixed(6)},${lng.toFixed(6)}`;
     if (btn) btn.classList.remove('locating');
+    syncOrigin();
     saveState();
     toast(t('gpsDone'));
   }, err => {
@@ -867,8 +883,9 @@ function resetRoute(){
   document.getElementById('stops-container').innerHTML = '';
   const o = document.getElementById('origin');
   const depot = lsGet(LS_DEPOT);
-  if (depot){ o.value = depot.v || ''; o._coord = depot.c || null; if (depot.c) searchBias = { lat: depot.c.lat, lon: depot.c.lng }; }
-  else { o.value = ''; o._coord = null; }
+  if (depot){ o.value = depot.v || ''; o._coord = depot.c || null; setOriginNum(depot.num); if (depot.c) searchBias = { lat: depot.c.lat, lon: depot.c.lng }; }
+  else { o.value = ''; o._coord = null; setOriginNum(''); }
+  syncOrigin();
   addStop(); addStop();
   document.getElementById('result-panel').classList.remove('on');
   optimizedAddresses = []; optimizedCoords = []; lastResult = null;
@@ -1114,7 +1131,7 @@ async function loadSharedRoute(){
     activeCourier = 0; mapShowAll = true;
     // Refleja la dirección de salida en el editor (por si quiere recalcular).
     const o = document.getElementById('origin');
-    if (o){ o.value = d.o.a || ''; o._coord = { lat: d.o.c[0], lng: d.o.c[1], address: d.o.a, approx: !!d.o.x }; }
+    if (o){ o.value = d.o.a || ''; o._coord = { lat: d.o.c[0], lng: d.o.c[1], address: d.o.a, approx: !!d.o.x }; syncOrigin(); }
     const panel = document.getElementById('result-panel');
     panel.classList.add('on');
     renderResult(true);
@@ -1223,9 +1240,11 @@ function loadRoute(id){
   const o = document.getElementById('origin');
   o.value = (r.origin && r.origin.v) || '';
   o._coord = (r.origin && r.origin.c) || null;
+  setOriginNum(r.origin && r.origin.num);
+  syncOrigin();
   if (o._coord) searchBias = { lat: o._coord.lat, lon: o._coord.lng };
   document.getElementById('stops-container').innerHTML = '';
-  (r.stops || []).forEach(s => addStop(s ? s.v : '', s ? s.c : null));
+  (r.stops || []).forEach(s => addStop(s ? s.v : '', s ? s.c : null, s ? s.num : ''));
   while (document.querySelectorAll('.stop-input').length < 2) addStop();
   couriers = Math.max(1, Math.min(MAX_COURIERS, r.couriers || 1));
   balanceStops = !!r.balanceStops;
@@ -1288,20 +1307,68 @@ function toggleSidebar(){ document.getElementById('sidebar').classList.contains(
 // text matches — which is what you want when you type the city yourself.
 let searchBias = null; // { lat, lon } | null, updated from the origin
 
+// Garantiza que haya un punto de referencia (tu salida) antes de buscar paradas.
+// Si la salida se tecleó sin elegir del desplegable, no tiene coordenada y el
+// sesgo quedaría nulo → resultados globales. Aquí la geolocalizamos una sola vez.
+let biasTriedFor = '';
+async function ensureBias(){
+  if (searchBias) return;
+  const o = document.getElementById('origin');
+  if (!o) return;
+  if (o._coord){ searchBias = { lat: o._coord.lat, lon: o._coord.lng }; return; }
+  const v = (o.value || '').trim();
+  if (!v || v === biasTriedFor) return;
+  biasTriedFor = v;
+  const g = await geocode(v);
+  if (g){ o._coord = g; searchBias = { lat: g.lat, lon: g.lng }; }
+}
+
+// La ciudad de tu salida (último trozo de la dirección de salida), para acotar
+// búsquedas de calles que escribes sin ciudad. Quita el código postal inicial.
+function originCity(){
+  const o = document.getElementById('origin');
+  if (!o) return '';
+  const parts = (o.value || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length < 2) return '';
+  const last = parts[parts.length - 1].replace(/^\d{4,5}\s*/, '').trim();
+  if (last.length < 3 || /^\d+$/.test(last)) return '';
+  return last;
+}
+
+async function photonQuery(q){
+  const p = new URLSearchParams({ q, limit: 15 });
+  if (searchBias) {
+    p.set('lat', searchBias.lat);
+    p.set('lon', searchBias.lon);
+    p.set('location_bias_scale', '0.8');
+  }
+  const r = await fetchT('https://photon.komoot.io/api/?' + p, 3500);
+  const d = await r.json();
+  return (d && d.features) || [];
+}
+
 async function fetchSuggestions(query) {
   if (query.length < 3) return [];
+  // Búsquedas a lanzar: lo que escribiste y, si no pusiste ciudad pero conozco
+  // la de tu salida, también "lo escrito, tu ciudad" — así las calles locales
+  // aparecen aunque exista el mismo nombre en otras poblaciones.
+  const queries = [query];
+  if (!query.includes(',')) {
+    const city = originCity();
+    if (city && !query.toLowerCase().includes(city.toLowerCase())) queries.push(query + ', ' + city);
+  }
   // 1) Photon (komoot) — rápido para autocompletar. Se salta si está caído.
   if (photonAvailable()) {
     try {
-      const p = new URLSearchParams({ q: query, limit: 15 });
-      if (searchBias) {
-        p.set('lat', searchBias.lat);
-        p.set('lon', searchBias.lon);
-        p.set('location_bias_scale', '0.25');
+      const lists = await Promise.all(queries.map(q => photonQuery(q).catch(() => [])));
+      const merged = [], seen = new Set();
+      for (const list of lists) for (const f of list) {
+        const c = f.geometry && f.geometry.coordinates;
+        const k = c ? c[0].toFixed(5) + ',' + c[1].toFixed(5) : Math.random();
+        if (seen.has(k)) continue;
+        seen.add(k); merged.push(f);
       }
-      const r = await fetchT('https://photon.komoot.io/api/?' + p, 3500);
-      const d = await r.json();
-      if (d.features && d.features.length) return d.features;
+      if (merged.length) return merged;
     } catch { markPhotonDown(); }
   }
   // 2) Respaldo: Nominatim (cuando Photon falla o está bloqueado), mapeado
@@ -1345,9 +1412,10 @@ function numberFromQuery(q) {
 function buildLabel(feature, userQuery) {
   const a = feature.properties || {};
   const streetName = a.street || a.name || '';
-  // Photon often matches at street level and returns no house number,
-  // so fall back to the number the user typed — that's how it gets KEPT.
-  const num = a.housenumber || numberFromQuery(userQuery);
+  // El número va en su propia casilla, así que la etiqueta usa solo el número
+  // de portal REAL del resultado (si lo trae). No pegamos el número escrito,
+  // para no confundir "Carrer 9" (nombre de calle) con un portal nº 9.
+  const num = a.housenumber || '';
   const street = streetName ? (num ? streetName + ' ' + num : streetName) : (a.name || '');
   const city = a.city || a.town || a.village || a.municipality || a.county || a.state || '';
   return { street, city, label: city ? street + ', ' + city : street };
@@ -1361,7 +1429,18 @@ function refineResults(features, query) {
   const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const parts = query.split(',');
   const cityHint = parts.length > 1 ? norm(parts[parts.length - 1]) : '';
-  const qTokens = norm(query.replace(/,/g, ' ')).split(/\s+/).filter(t => t.length >= 2);
+  const qTokens = norm(query.replace(/,/g, ' ')).split(/\s+/).filter(t => t && (t.length >= 2 || /^\d+$/.test(t)));
+
+  // Distancia (km) a tu punto de salida, para que la dirección más cercana
+  // gane cuando varias coinciden igual de bien con el texto (p. ej. "Garbí").
+  const bias = searchBias ? { lat: searchBias.lat, lng: searchBias.lon } : null;
+  const kmFromBias = (la, lo) => {
+    if (!bias) return 0;
+    const R = 6371, toR = x => x * Math.PI / 180;
+    const dLa = toR(la - bias.lat), dLo = toR(lo - bias.lng);
+    const h = Math.sin(dLa / 2) ** 2 + Math.cos(toR(bias.lat)) * Math.cos(toR(la)) * Math.sin(dLo / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  };
 
   const out = [], seen = new Set();
   const coarse = new Set(['country', 'state', 'county']);
@@ -1376,22 +1455,32 @@ function refineResults(features, query) {
     if (seen.has(key)) continue;                      // collapse duplicate street segments
     seen.add(key);
 
-    // Relevance: how many typed words actually appear here (longer words = name/city).
-    const hay = norm(street + ' ' + city + ' ' + (p.postcode || ''));
+    // Relevancia: cuántas palabras escritas aparecen en el NOMBRE de la calle
+    // (sin el número de portal). Un número que forma parte del nombre de la
+    // calle (p. ej. "Carrer 9") puntúa fuerte y sube por encima de los portales.
+    const nameRaw = norm((p.street || p.name || '') + ' ' + city + ' ' + (p.postcode || ''));
     let score = 0;
-    for (const t of qTokens) if (hay.includes(t)) score += (t.length >= 4 ? 2 : 1);
+    for (const t of qTokens){
+      if (nameRaw.includes(t)) score += (/^\d+$/.test(t) ? 2 : (t.length >= 4 ? 2 : 1));
+    }
     if (cityHint && norm(city).includes(cityHint)) score += 6;  // typed city dominates
 
     out.push({
       street: street || label, city, label, lat, lng, postcode: p.postcode || '',
       score,
+      dist: kmFromBias(lat, lng),
       hasNumber: p.housenumber ? 1 : 0,
       typeRank: p.type === 'house' ? 0 : (p.type === 'street' ? 1 : 2),
     });
   }
   // Best textual match first; then exact addresses; then streets; then the rest.
-  out.sort((a, b) => b.score - a.score || b.hasNumber - a.hasNumber || a.typeRank - b.typeRank);
-  return out.slice(0, 7);
+  // Mejor coincidencia de texto primero; a igualdad, la MÁS CERCANA a tu salida;
+  // luego direcciones con número, luego calles, luego el resto.
+  // Quitamos el ruido: resultados que no coinciden en nada con lo que escribiste.
+  let ranked = out.filter(r => r.score > 0);
+  if (!ranked.length) ranked = out;
+  ranked.sort((a, b) => b.score - a.score || a.dist - b.dist || b.hasNumber - a.hasNumber || a.typeRank - b.typeRank);
+  return ranked.slice(0, 7);
 }
 
 // Bold the parts of a suggestion that match what the user typed.
@@ -1508,6 +1597,7 @@ function attachAutocomplete(input, drop, isOrigin) {
     drop.innerHTML = '<div class="ac-loading">' + t('searching') + '</div>';
     drop.classList.add('open');
     place();
+    if (!isOrigin) await ensureBias();   // fija el punto de referencia (tu salida)
     const features = await fetchSuggestions(q);
     if (locked) return;  // user already selected something while we were fetching
     current = refineResults(features, q);
@@ -1542,11 +1632,12 @@ function makeStopRow(n) {
   div.className = 'stop-row';
   const uid = ++stopIdCounter;
   div.innerHTML = `
-    <div class="badge-num">${n}</div>
     <div class="ac-wrap">
       <input type="text" class="stop-input" data-i18n-ph="stopPh" placeholder="${t('stopPh')}" autocomplete="off" />
       <div class="ac-dropdown"></div>
     </div>
+    <input type="text" class="stop-num" inputmode="numeric" data-i18n-ph="numPh" placeholder="${t('numPh')}" aria-label="${t('numPh')}" autocomplete="off" />
+    <div class="stop-display" title="Editar"></div>
     <button class="btn-remove" onclick="removeStop(this)" aria-label="Eliminar">
       <svg viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>`;
@@ -1555,22 +1646,59 @@ function makeStopRow(n) {
 
 function renumber() {
   document.querySelectorAll('#stops-container .stop-row').forEach((r, i) => {
-    r.querySelector('.badge-num').textContent = i + 1;
+    const b = r.querySelector('.badge-num');
+    if (b) b.textContent = i + 1;
   });
 }
 
-function addStop(value, coord) {
+function escHtml(s){ return (s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+// Pinta una fila (parada u origen) en modo compacto: dirección completa, con el
+// número resaltado. Sirve tanto para .stop-row como para .origin-row.
+function fillRow(row){
+  if (!row) return;
+  const inp = row.querySelector('.stop-input, #origin');
+  if (!inp) return;
+  const v = (inp.value || '').trim();
+  if (!v){ row.classList.remove('filled'); return; }
+  const numEl = row.querySelector('.stop-num');
+  const num = numEl ? numEl.value.trim() : '';
+  const numHtml = num ? ' <span class="sd-num">' + escHtml(num) + '</span>' : '';
+  const ci = v.indexOf(',');
+  const html = ci === -1
+    ? escHtml(v) + numHtml
+    : escHtml(v.slice(0, ci).trim()) + numHtml + escHtml(v.slice(ci));
+  const disp = row.querySelector('.stop-display');
+  if (disp) disp.innerHTML = html;
+  row.classList.add('filled');
+}
+function editRow(row){
+  if (!row) return;
+  row.classList.remove('filled');
+  const inp = row.querySelector('.stop-input, #origin');
+  if (inp) setTimeout(() => inp.focus(), 0);
+}
+function syncOrigin(){ fillRow(document.querySelector('.origin-row')); }
+
+function addStop(value, coord, num) {
   if (document.querySelectorAll('#stops-container .stop-row').length >= MAX_STOPS) return;
   const n = document.querySelectorAll('#stops-container .stop-row').length + 1;
   const row = makeStopRow(n);
   document.getElementById('stops-container').appendChild(row);
   const input = row.querySelector('.stop-input');
   const drop  = row.querySelector('.ac-dropdown');
+  const numEl = row.querySelector('.stop-num');
+  const disp  = row.querySelector('.stop-display');
   attachAutocomplete(input, drop);
   input.addEventListener('input', saveState);
+  const fillIfLeftRow = () => { if (!row.contains(document.activeElement)) fillRow(row); };
+  input.addEventListener('blur', () => setTimeout(fillIfLeftRow, 200));
+  if (numEl){ numEl.addEventListener('input', saveState); numEl.addEventListener('blur', () => setTimeout(fillIfLeftRow, 200)); }
+  if (disp) disp.addEventListener('click', () => editRow(row));
   if (value) input.value = value;
   if (coord) input._coord = coord;
-  if (!value) input.focus();
+  if (num && numEl) numEl.value = num;
+  if (value) fillRow(row);   // si ya trae dirección, arranca compacta
+  else input.focus();
   saveState();
 }
 
@@ -1582,6 +1710,16 @@ function removeStop(btn) {
 
 // ── Arranque: idioma, rutas recientes y última ruta / salida guardada ───────
 attachAutocomplete(document.getElementById('origin'), document.getElementById('ac-origin'), true);
+(function setupOriginCompact(){
+  const o = document.getElementById('origin');
+  const oNum = document.getElementById('origin-num');
+  const oDisp = document.getElementById('origin-display');
+  const oRow = o && o.closest('.origin-row');
+  const fillIfLeft = () => { if (oRow && !oRow.contains(document.activeElement)) syncOrigin(); };
+  if (o) o.addEventListener('blur', () => setTimeout(fillIfLeft, 200));
+  if (oNum) oNum.addEventListener('blur', () => setTimeout(fillIfLeft, 200));
+  if (oDisp && oRow) oDisp.addEventListener('click', () => editRow(oRow));
+})();
 (function start(){
   const o = document.getElementById('origin');
   o.addEventListener('input', saveState);
@@ -1604,14 +1742,18 @@ attachAutocomplete(document.getElementById('origin'), document.getElementById('a
   if (hasLast){
     o.value = (last.origin && last.origin.v) || '';
     o._coord = (last.origin && last.origin.c) || null;
+    setOriginNum(last.origin && last.origin.num);
+    syncOrigin();
     if (o._coord) searchBias = { lat: o._coord.lat, lon: o._coord.lng };
-    (last.stops || []).forEach(s => addStop(s ? s.v : '', s ? s.c : null));
+    (last.stops || []).forEach(s => addStop(s ? s.v : '', s ? s.c : null, s ? s.num : ''));
     couriers = Math.max(1, Math.min(MAX_COURIERS, last.couriers || 1));
     balanceStops = !!last.balanceStops;
   } else if (depot){
     o.value = depot.v || '';
     o._coord = depot.c || null;
+    setOriginNum(depot.num);
     if (depot.c) searchBias = { lat: depot.c.lat, lon: depot.c.lng };
+    syncOrigin();
   }
   while (document.querySelectorAll('.stop-input').length < 2) addStop();
   updateCourierUI();
@@ -1702,18 +1844,50 @@ async function geocode(address) {
   return c;
 }
 
+// Combina dirección + número de casa: "Calle X, Ciudad" + "32" -> "Calle X 32, Ciudad"
+function withNumber(addr, num){
+  addr = (addr || '').trim(); num = (num || '').trim();
+  if (!num) return addr;
+  const ci = addr.indexOf(',');
+  if (ci === -1) return addr + ' ' + num;
+  return addr.slice(0, ci).trim() + ' ' + num + addr.slice(ci);
+}
+// Separa el número de casa de un texto pegado: "Calle X 32, Ciudad" -> {address:"Calle X, Ciudad", num:"32"}
+function splitNumber(text){
+  text = (text || '').trim();
+  const num = numberFromQuery(text);
+  if (!num) return { address: text, num: '' };
+  const address = text.replace(new RegExp('\\s*\\b' + num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b'), '')
+                      .replace(/\s{2,}/g, ' ').replace(/\s+,/g, ',').trim();
+  return { address, num };
+}
+function setOriginNum(v){ const n = document.getElementById('origin-num'); if (n) n.value = v || ''; }
+// Lee el número de la casilla de la misma fila (paradas u origen).
+function rowNumber(input){
+  if (input && input.id === 'origin'){
+    const n = document.getElementById('origin-num');
+    return n ? n.value.trim() : '';
+  }
+  const row = input.closest && input.closest('.stop-row');
+  const n = row && row.querySelector('.stop-num');
+  return n ? n.value.trim() : '';
+}
+
 async function resolveCoord(input) {
-  const val = input.value.trim();
-  if (!val) return null;
+  const base = input.value.trim();
+  if (!base) return null;
+  const num = rowNumber(input);
+  const val = withNumber(base, num);   // dirección completa, con el número de la casilla
   // Coords from an autocomplete selection are the most reliable.
   if (input._coord) return { ...input._coord, address: val, approx: false };
-  // Try both geocoders on the full text.
-  const geo = await geocode(val);
+  // Probamos la dirección completa (calle + número + ciudad).
+  let geo = await geocode(val);
   if (geo) return { ...geo, address: val, approx: false };
-  // Exact portal not in OSM (a real coverage gap, e.g. some Castelldefels
-  // streets). Fall back to the city centre so the stop is still ordered — the
-  // Google Maps link uses the address TEXT, and Google will navigate exactly.
-  const parts = val.split(',');
+  // Si con número no la encuentra, probamos solo la calle (el enlace de
+  // navegación usa el TEXTO con número, así que Google/Waze irán a la casa).
+  if (num){ geo = await geocode(base); if (geo) return { ...geo, address: val, approx: false }; }
+  // Hueco real de OSM: caemos al centro de la ciudad para poder ordenarla.
+  const parts = base.split(',');
   const cityHint = parts.length > 1 ? parts[parts.length - 1].trim() : '';
   if (cityHint) {
     const cc = await geocode(cityHint);
@@ -1867,15 +2041,39 @@ function nnFromFirst(stops, firstIdx, cost){
 }
 // Multi-arranque: búsqueda local desde varios inicios, nos quedamos el mejor.
 // Todo en LOCAL sobre la matriz ya descargada → ni una llamada de red extra.
-function multiStart(origin, stops, cost, K){
+// Todas las permutaciones de un array (para rutas pequeñas).
+function permute(arr){
+  if (arr.length <= 1) return [arr];
+  const out = [];
+  for (let i = 0; i < arr.length; i++){
+    const rest = arr.slice(0, i).concat(arr.slice(i + 1));
+    for (const p of permute(rest)) out.push([arr[i], ...p]);
+  }
+  return out;
+}
+// Orden ÓPTIMO exacto probando todas las combinaciones. Solo para pocas paradas
+// (≤8 → máx 40320 órdenes, instantáneo). Garantiza el mejor orden posible según
+// la matriz de costes (carretera si está disponible).
+function bruteForce(origin, stops, cost){
+  let best = stops, bestL = routeCost(origin, stops, cost);
+  for (const perm of permute(stops)){
+    const L = routeCost(origin, perm, cost);
+    if (L < bestL){ bestL = L; best = perm; }
+  }
+  return best;
+}
+
+function multiStart(origin, stops, cost, costEval, K){
+  const ev = costEval || cost;
   if (stops.length <= 2) return localSearch(origin, nearestNeighbor(origin, stops, cost), cost);
+  if (stops.length <= 7) return bruteForce(origin, stops, ev);   // óptimo exacto, tiempo real de marcha
   let best = localSearch(origin, nearestNeighbor(origin, stops, cost), cost);
-  let bestL = routeCost(origin, best, cost);
+  let bestL = routeCost(origin, best, ev);
   const n = stops.length;
   for (let k = 0; k < K; k++){
     const start = (k < n) ? nnFromFirst(stops, k % n, cost) : shuffleArr(stops);
     const s = localSearch(origin, start, cost);
-    const L = routeCost(origin, s, cost);
+    const L = routeCost(origin, s, ev);
     if (L < bestL){ bestL = L; best = s; }
   }
   return best;
@@ -1960,30 +2158,43 @@ function improveAssignment(origin, clusters, cost, balanced){
   return R.filter(c => c.length);
 }
 
-// Matriz de tiempos reales por carretera (OSRM /table). Una sola llamada con TODAS
-// las paradas: sirve para repartir entre repartidores y para ordenar cada ruta.
+// Matriz de tiempos/distancias reales por carretera (OSRM /table). Una sola
+// llamada con TODAS las paradas: sirve para repartir y para ordenar cada ruta.
+// El servidor gratuito falla a veces de forma intermitente, así que reintentamos
+// un par de veces antes de rendirnos (si no, caeríamos a línea recta y el orden
+// saldría peor por carretera).
 async function fetchTable(pts){
   if (pts.length < 2) return null;
   const path = pts.map(c => `${c.lng},${c.lat}`).join(';');
   const url = `https://router.project-osrm.org/table/v1/driving/${path}?annotations=duration`;
-  try {
-    const r = await fetchT(url, 9000);
-    const d = await r.json();
-    if (d.code === 'Ok' && d.durations) return d.durations;
-  } catch {}
+  for (let attempt = 0; attempt < 3; attempt++){
+    try {
+      const r = await fetchT(url, 8000);
+      const d = await r.json();
+      if (d.code === 'Ok' && (d.durations || d.distances)) return d.durations || d.distances;
+    } catch {}
+    if (attempt < 2) await new Promise(res => setTimeout(res, 400)); // breve espera y reintento
+  }
   return null;
 }
 // Resuelve el reparto + el orden de cada repartidor.
 async function solveRoutes(origin, stopCoords, k){
   let clusters = clusterStops(origin, stopCoords, k);   // semilla: k-means (zonas) o barrido (equilibrado)
-  let cost = dist;                                      // por defecto, línea recta (sin red)
+  let cost = dist;        // coste para los MOVIMIENTOS del heurístico (rutas grandes)
+  let costEval = dist;    // coste para EVALUAR/ELEGIR el orden (tiempo real en el sentido de marcha)
   if (roadOpt){
     const pts = [origin, ...stopCoords];
-    const M = await fetchTable(pts);                   // ← UNA sola matriz global
+    const M = await fetchTable(pts);                   // ← UNA sola matriz global (tiempos OSRM)
     if (M){
       pts.forEach((p, idx) => p._mi = idx);
-      // Duraciones de OSRM asimétricas (sentidos únicos): promediamos A→B y B→A,
-      // porque 2-opt/Or-opt asumen coste simétrico (si no, convergen mal).
+      // Evaluación: tiempo REAL en el sentido de marcha A→B (no promediamos, porque
+      // en calles de un solo sentido A→B y B→A difieren y promediar elige peor).
+      costEval = (a, b) => {
+        const v = M[a._mi] && M[a._mi][b._mi];
+        return (typeof v === 'number') ? v : dist(a, b) * 1000;
+      };
+      // Movimientos del heurístico (2-opt/Or-opt invierten tramos): ahí sí conviene
+      // un coste simétrico para que converjan bien. Solo se usa en rutas largas (>7).
       cost = (a, b) => {
         const x = a._mi, y = b._mi;
         const v1 = M[x] && M[x][y], v2 = M[y] && M[y][x];
@@ -1992,7 +2203,7 @@ async function solveRoutes(origin, stopCoords, k){
       };
     }
   }
-  const orderClusters = cls => cls.map(c => multiStart(origin, c, cost, Math.min(40, c.length + 12)));
+  const orderClusters = cls => cls.map(c => multiStart(origin, c, cost, costEval, Math.min(40, c.length + 12)));
   if (clusters.length <= 1) return orderClusters(clusters);
   const improved = improveAssignment(origin, clusters, cost, balanceStops);
   // Seguridad: la mejora de reparto usa una estimación rápida; comparamos el
@@ -2000,7 +2211,7 @@ async function solveRoutes(origin, stopCoords, k){
   // así nunca entregamos algo peor que antes.
   const seedOrdered = orderClusters(clusters);
   const impOrdered  = orderClusters(improved);
-  const sum = rs => rs.reduce((a, r) => a + routeCost(origin, r, cost), 0);
+  const sum = rs => rs.reduce((a, r) => a + routeCost(origin, r, costEval), 0);
   return sum(impOrdered) <= sum(seedOrdered) ? impOrdered : seedOrdered;
 }
 
@@ -2020,8 +2231,10 @@ async function optimizeRoute() {
 
   const originInput = document.getElementById('origin');
   const originCoord = await resolveCoord(originInput);
-  if (!originCoord) { originInput.classList.add('invalid'); alert(t('originFail')); finishIdle(); return; }
+  if (!originCoord) { originInput.classList.add('invalid'); const orow = originInput.closest('.origin-row'); if (orow) orow.classList.remove('filled'); alert(t('originFail')); finishIdle(); return; }
   if (isFinite(originCoord.lat) && isFinite(originCoord.lng)) searchBias = { lat: originCoord.lat, lon: originCoord.lng };
+  // Recuerda este origen como "el último usado" para proponerlo la próxima vez.
+  lsSet(LS_DEPOT, { v: originInput.value.trim(), c: { lat: originCoord.lat, lng: originCoord.lng }, num: rowNumber(originInput) });
 
   setOptBusy('calcRoute');
   // Geocodifica de una en una (a ritmo de red), NO en ráfaga: los buscadores
@@ -2036,7 +2249,7 @@ async function optimizeRoute() {
 
   if (failedInputs.length) {
     // Las marca en rojo para que puedas corregirlas, y pregunta si seguir con el resto.
-    failedInputs.forEach(inp => inp.classList.add('invalid'));
+    failedInputs.forEach(inp => { inp.classList.add('invalid'); const r = inp.closest('.stop-row'); if (r) r.classList.remove('filled'); });
     const ok = confirm(t('someFailHead') + '\n\n• ' + failedInputs.map(i => i.value.trim()).join('\n• ') + '\n\n' + t('continueRest'));
     if (!ok || stopCoords.length < 2) {
       try { failedInputs[0].scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
@@ -2129,10 +2342,10 @@ function renderResult(fit){
     const actions = `<div class="result-actions">
         <div class="nav-hint">${t('navHint')}</div>
         <div class="share-row">
-          <button class="share-btn wa" onclick="shareWhatsApp(${ci})"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 18a8 8 0 01-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1112 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.7.9-.3.2-.5.1a6.5 6.5 0 01-1.9-1.2 7.2 7.2 0 01-1.3-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4c0-.1-.5-1.3-.7-1.7s-.4-.4-.5-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001.1 2.7 11.8 11.8 0 004.5 4 5 5 0 002.2.4 2.7 2.7 0 001.8-1.3 2.2 2.2 0 00.2-1.2c-.1-.1-.3-.2-.5-.3z"/></svg>WhatsApp</button>
-          <button class="share-btn mail" onclick="shareEmail(${ci})"><svg viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>${t('mailLabel')}</span></button>
-          <button class="share-btn copy" onclick="copyLink(${ci})"><svg viewBox="0 0 24 24" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg><span>${t('copyLink')}</span></button>
-          <button class="share-btn qr" onclick="shareQR(${ci})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h.01M21 21v.01M21 17v.01M17 21v.01"/></svg><span>${t('shareQR')}</span></button>
+          <button class="share-btn wa" onclick="shareWhatsApp(${ci})" title="WhatsApp" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 18a8 8 0 01-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1112 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.7.9-.3.2-.5.1a6.5 6.5 0 01-1.9-1.2 7.2 7.2 0 01-1.3-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4c0-.1-.5-1.3-.7-1.7s-.4-.4-.5-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001.1 2.7 11.8 11.8 0 004.5 4 5 5 0 002.2.4 2.7 2.7 0 001.8-1.3 2.2 2.2 0 00.2-1.2c-.1-.1-.3-.2-.5-.3z"/></svg></button>
+          <button class="share-btn mail" onclick="shareEmail(${ci})" title="${t('mailLabel')}" aria-label="${t('mailLabel')}"><svg viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></button>
+          <button class="share-btn copy" onclick="copyLink(${ci})" title="${t('copyLink')}" aria-label="${t('copyLink')}"><svg viewBox="0 0 24 24" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg></button>
+          <button class="share-btn qr" onclick="shareQR(${ci})" title="${t('shareQR')}" aria-label="${t('shareQR')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h.01M21 21v.01M21 17v.01M17 21v.01"/></svg></button>
         </div>
       </div>`;
     return `${stats}${list}${actions}`;
@@ -2436,15 +2649,23 @@ function confirmPaste(){
   const lines = document.getElementById('paste-area').value.split('\n').map(l => l.trim()).filter(Boolean);
   let added = 0, li = 0;
   // Primero rellena los inputs vacíos que ya existen (p. ej. las dos filas iniciales)
-  const empties = Array.from(document.querySelectorAll('#stops-container .stop-input')).filter(i => !i.value.trim());
-  for (const inp of empties){
+  const emptyRows = Array.from(document.querySelectorAll('#stops-container .stop-row'))
+    .filter(r => !r.querySelector('.stop-input').value.trim());
+  for (const row of emptyRows){
     if (li >= lines.length) break;
-    inp.value = lines[li++]; inp._coord = null; inp.classList.remove('invalid'); added++;
+    const { address, num } = splitNumber(lines[li++]);
+    const inp = row.querySelector('.stop-input');
+    const nEl = row.querySelector('.stop-num');
+    inp.value = address; inp._coord = null; inp.classList.remove('invalid');
+    if (nEl) nEl.value = num;
+    fillRow(row);
+    added++;
   }
   // Luego crea filas nuevas para el resto
   for (; li < lines.length; li++){
     if (document.querySelectorAll('#stops-container .stop-row').length >= MAX_STOPS) break;
-    addStop(lines[li]); added++;
+    const { address, num } = splitNumber(lines[li]);
+    addStop(address, null, num); added++;
   }
   closePaste();
   if (added) saveState();
