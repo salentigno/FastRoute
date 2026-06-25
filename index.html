@@ -922,14 +922,23 @@ const encA = a => encodeURIComponent(a)
   .replace(/'/g, '%27').replace(/!/g, '%21')
   .replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/\*/g, '%2A');
 function destQuery(s){
-  if (s && s.address) return s.address;            // direcciones de entrega: las apps las ubican bien por nombre
+  // Si tenemos el punto exacto resuelto (no aproximado), navegamos a esas coordenadas:
+  // así el destino coincide EXACTAMENTE con lo que muestra el preview (sin que Google
+  // reinterprete el texto y se vaya a otra población con calle de igual nombre).
+  if (s && isFinite(s.lat) && isFinite(s.lng) && !s.approx) return `${s.lat},${s.lng}`;
+  if (s && s.address) return s.address;
   if (s && isFinite(s.lat) && isFinite(s.lng)) return `${s.lat},${s.lng}`;
   return '';
 }
+function isCoordQuery(q){ return /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(q); }
 function navUrl(s, app){
   const q = destQuery(s);
   if (!q) return '';
-  if (app === 'waze') return 'https://waze.com/ul?q=' + encA(q) + '&navigate=yes';
+  if (app === 'waze'){
+    // Waze: coordenadas exactas con ll=, o búsqueda por texto con q=
+    if (isCoordQuery(q)) return 'https://waze.com/ul?ll=' + encA(q) + '&navigate=yes';
+    return 'https://waze.com/ul?q=' + encA(q) + '&navigate=yes';
+  }
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encA(q) + '&travelmode=driving';
 }
 function openStopNav(ci, i){
@@ -1885,6 +1894,50 @@ async function geocode(address) {
   return c;
 }
 
+// Quita el tipo de vía del principio ("Carrer de", "Avinguda", "Av.", "Calle"...)
+// para quedarnos con el nombre, que es lo que mejor casa en la búsqueda estructurada
+// (así "Carrer de Josep Tarradellas" encuentra la "Avinguda de Josep Tarradellas").
+function streetCore(streetRaw){
+  let s = (streetRaw || '').trim();
+  s = s.replace(/^c\/\s*/i, '');
+  s = s.replace(/^(ctra|crta|avda|avgda|av|pg|ps|pl)\.?\s+/i, '');   // abreviatura + espacio (no parte de palabra)
+  s = s.replace(/^(carrer|calle|avinguda|avenida|passeig|paseo|pla[\u00e7c]a|plaza|ronda|rambla|travessera|cam[\u00edi]|camino|carretera|gran via|via|baixada|pujada|riera|carrero)\s+/i, '');
+  s = s.replace(/^(de l'|de la |de las |de los |dels |del |de |d')/i, '');
+  return s.trim();
+}
+// Separa "Calle X 12, Ciudad" -> { streetRaw:"Calle X 12", city:"Ciudad" } (quita CP).
+function splitCityStreet(base){
+  const parts = (base || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return { streetRaw: (base || '').trim(), city: '' };
+  const city = parts[parts.length - 1].replace(/\b\d{4,5}\b/g, '').trim();
+  const streetRaw = parts.slice(0, -1).join(', ').trim();
+  return { streetRaw, city };
+}
+// Búsqueda ESTRUCTURADA de Photon: mucho más precisa que el texto libre porque
+// fija ciudad y separa nombre de calle + número (no confunde de municipio).
+async function geocodeStructured(base, num){
+  if (!photonAvailable()) return null;
+  const { streetRaw, city } = splitCityStreet(base);
+  let street = streetRaw, hn = (num || '').trim();
+  const m = streetRaw.match(/^(.*?)[\s,]+(\d+[a-zA-Z]?)$/);   // número pegado al final del nombre
+  if (m){ street = m[1].trim(); if (!hn) hn = m[2]; }
+  street = streetCore(street) || street;
+  if (!street) return null;
+  try {
+    const p = new URLSearchParams({ street, limit: 1 });
+    if (city) p.set('city', city);
+    if (hn) p.set('housenumber', hn);
+    if (searchBias){ p.set('lat', searchBias.lat); p.set('lon', searchBias.lon); p.set('location_bias_scale', '0.2'); }
+    const r = await fetchT('https://photon.komoot.io/api/?' + p, 3500);
+    const d = await r.json();
+    if (d.features && d.features.length){
+      const [lng, lat] = d.features[0].geometry.coordinates;
+      return { lat, lng };
+    }
+  } catch { markPhotonDown(); }
+  return null;
+}
+
 // Combina dirección + número de casa: "Calle X, Ciudad" + "32" -> "Calle X 32, Ciudad"
 function withNumber(addr, num){
   addr = (addr || '').trim(); num = (num || '').trim();
@@ -1921,8 +1974,11 @@ async function resolveCoord(input) {
   const val = withNumber(base, num);   // dirección completa, con el número de la casilla
   // Coords from an autocomplete selection are the most reliable.
   if (input._coord) return { ...input._coord, address: val, approx: false };
-  // Probamos la dirección completa (calle + número + ciudad).
-  let geo = await geocode(val);
+  // Búsqueda ESTRUCTURADA primero (calle + número + ciudad): la más precisa.
+  let geo = await geocodeStructured(base, num);
+  if (geo) return { ...geo, address: val, approx: false };
+  // Si no, probamos la dirección completa como texto libre.
+  geo = await geocode(val);
   if (geo) return { ...geo, address: val, approx: false };
   // Si con número no la encuentra, probamos solo la calle (el enlace de
   // navegación usa el TEXTO con número, así que Google/Waze irán a la casa).
