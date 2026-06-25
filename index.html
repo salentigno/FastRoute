@@ -106,7 +106,7 @@
   .origin-icon.locating svg { animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .card.editor { position:relative; }
-  .opt-overlay { position:absolute; inset:0; z-index:30; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--topbar-bg); backdrop-filter:saturate(1.2) blur(3px); border-radius:var(--radius); }
+  .opt-overlay { position:fixed; inset:0; z-index:450; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--topbar-bg); backdrop-filter:saturate(1.2) blur(3px); }
   .opt-overlay.show { display:flex; }
   .opt-spinner { width:44px; height:44px; border-radius:50%; border:3px solid var(--line-strong); border-top-color:var(--blue); animation:spin .8s linear infinite; }
   .opt-overlay-msg { font-size:14px; font-weight:700; color:var(--text); }
@@ -1962,7 +1962,7 @@ async function geocodeNominatimStructured(street, hn, city){
 // Si la parada cae lejísimos del centro de su propia ciudad, casi seguro está mal
 // geocodificada (calle homónima en otro municipio). Pedimos una segunda opinión a
 // Nominatim y, si la sitúa claramente más cerca de la ciudad, la usamos.
-const SUSPECT_KM = 10;
+const SUSPECT_KM = 8;
 async function sanityCheckCity(geo, base, num){
   const { street, hn, city } = addrParts(base, num);
   if (!city) return geo;
