@@ -707,6 +707,7 @@ let activeCourier = 0;
 let mapShowAll = true; // mapa: ver todas las rutas o solo la del repartidor activo
 let photonDown = false, photonDownAt = 0;
 let routeMap = null, mapLayers = [], lastPts = [], mapTiles = null;
+let mobileView = 'edit';
 function lsGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 function lsDel(k){ try { localStorage.removeItem(k); } catch {} }
@@ -2966,7 +2967,6 @@ function toggleMap(){ mapMin = !mapMin; lsSet(LS_MAPMIN, mapMin); applyMapMin();
 
 // Navegación móvil: alterna entre el editor de paradas y la ruta (en vez de
 // una columna larguísima). En escritorio no tiene efecto (lo controla el CSS).
-let mobileView = 'edit';
 function setMobileView(v){
   if (document.body.classList.contains('courier')) v = 'route'; // bloqueado en la ruta
   if (v === 'route' && !lastResult){
