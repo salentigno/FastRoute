@@ -710,6 +710,7 @@ let routeMap = null, mapLayers = [], lastPts = [], mapTiles = null;
 function lsGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 function lsDel(k){ try { localStorage.removeItem(k); } catch {} }
+let booting = true;   // mientras arranca/restaura, no guardamos (evita machacar la ruta guardada)
 
 // fetch con tiempo límite: ninguna petición de red puede dejar la app colgada.
 async function fetchT(url, ms = 7000, opts = {}) {
@@ -798,7 +799,7 @@ function updateCourierUI(){
   const br = document.getElementById('balance-row');
   if (br) br.hidden = couriers <= 1;
 }
-function saveState(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => lsSet(LS_LAST, snapshot()), 500); }
+function saveState(){ if (booting) return; clearTimeout(saveTimer); saveTimer = setTimeout(() => lsSet(LS_LAST, snapshot()), 500); }
 
 // ── Modo claro / oscuro ─────────────────────────────────────────────────────
 let themeMode = 'light';
@@ -1843,9 +1844,9 @@ attachAutocomplete(document.getElementById('origin'), document.getElementById('a
     }
   } catch (e) {
     console.warn('No se pudo reabrir el último resultado:', e);
-    lastResult = null;
     document.getElementById('result-panel').classList.remove('on');
   }
+  booting = false;   // arranque terminado: ya se puede guardar
 })();
 
 // Si este móvil ya estaba en modo repartidor (lo abrió antes por QR), restáuralo.
@@ -2986,6 +2987,11 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => { if (routeMap) routeMap.invalidateSize(); }, 150);
 });
 window.addEventListener('load', setAppTop);
+// Vuelca el estado (incluida la ruta) justo antes de recargar/cerrar, por si el
+// guardado retardado aún no había saltado. Así un pull-to-refresh nunca la pierde.
+function flushState(){ if (!booting) { try { lsSet(LS_LAST, snapshot()); } catch {} } }
+window.addEventListener('pagehide', flushState);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushState(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(setAppTop);
 document.addEventListener('input', e => {
   const el = e.target;
