@@ -658,6 +658,7 @@
     <div class="modal-actions">
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
+    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2025.06.25-b</div>
   </div>
 </div>
 
@@ -2463,7 +2464,7 @@ function fmtTime(mins){
   return h + ' h' + (m ? ' ' + m + ' ' + t('unitMin') : '');
 }
 
-const esc = s => (s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+function esc(s){ return (s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
 // Render the result panel from lastResult (also used when switching language).
 function renderResult(fit){
