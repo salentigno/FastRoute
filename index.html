@@ -1913,15 +1913,20 @@ function splitCityStreet(base){
   const streetRaw = parts.slice(0, -1).join(', ').trim();
   return { streetRaw, city };
 }
-// Búsqueda ESTRUCTURADA de Photon: mucho más precisa que el texto libre porque
-// fija ciudad y separa nombre de calle + número (no confunde de municipio).
-async function geocodeStructured(base, num){
-  if (!photonAvailable()) return null;
+// Descompone una dirección en { street, hn, city } para búsqueda estructurada.
+function addrParts(base, num){
   const { streetRaw, city } = splitCityStreet(base);
   let street = streetRaw, hn = (num || '').trim();
   const m = streetRaw.match(/^(.*?)[\s,]+(\d+[a-zA-Z]?)$/);   // número pegado al final del nombre
   if (m){ street = m[1].trim(); if (!hn) hn = m[2]; }
   street = streetCore(street) || street;
+  return { street, hn, city };
+}
+// Búsqueda ESTRUCTURADA de Photon: mucho más precisa que el texto libre porque
+// fija ciudad y separa nombre de calle + número (no confunde de municipio).
+async function geocodeStructured(base, num){
+  if (!photonAvailable()) return null;
+  const { street, hn, city } = addrParts(base, num);
   if (!street) return null;
   try {
     const p = new URLSearchParams({ street, limit: 1 });
@@ -1936,6 +1941,38 @@ async function geocodeStructured(base, num){
     }
   } catch { markPhotonDown(); }
   return null;
+}
+// Centro de una ciudad (cacheado) para la comprobación de cordura.
+async function cityCenter(city){
+  if (!city) return null;
+  return await geocode(city);
+}
+// Nominatim estructurado (segunda opinión, solo para paradas sospechosas).
+async function geocodeNominatimStructured(street, hn, city){
+  if (!street || !city) return null;
+  try {
+    const p = new URLSearchParams({ format: 'jsonv2', limit: 1, 'accept-language': 'es', city });
+    p.set('street', (hn ? hn + ' ' : '') + street);
+    const r = await fetchT('https://nominatim.openstreetmap.org/search?' + p, 6000);
+    const d = await r.json();
+    if (d.length) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+  } catch {}
+  return null;
+}
+// Si la parada cae lejísimos del centro de su propia ciudad, casi seguro está mal
+// geocodificada (calle homónima en otro municipio). Pedimos una segunda opinión a
+// Nominatim y, si la sitúa claramente más cerca de la ciudad, la usamos.
+const SUSPECT_KM = 10;
+async function sanityCheckCity(geo, base, num){
+  const { street, hn, city } = addrParts(base, num);
+  if (!city) return geo;
+  const center = await cityCenter(city);
+  if (!center) return geo;
+  const dGeo = dist(geo, center);
+  if (dGeo <= SUSPECT_KM) return geo;            // está donde debería: ok
+  const alt = await geocodeNominatimStructured(street, hn, city);
+  if (alt && dist(alt, center) < dGeo - 1) return alt;   // claramente más cerca de la ciudad
+  return geo;
 }
 
 // Combina dirección + número de casa: "Calle X, Ciudad" + "32" -> "Calle X 32, Ciudad"
@@ -1972,17 +2009,18 @@ async function resolveCoord(input) {
   if (!base) return null;
   const num = rowNumber(input);
   const val = withNumber(base, num);   // dirección completa, con el número de la casilla
-  // Coords from an autocomplete selection are the most reliable.
-  if (input._coord) return { ...input._coord, address: val, approx: false };
-  // Búsqueda ESTRUCTURADA primero (calle + número + ciudad): la más precisa.
-  let geo = await geocodeStructured(base, num);
-  if (geo) return { ...geo, address: val, approx: false };
-  // Si no, probamos la dirección completa como texto libre.
-  geo = await geocode(val);
-  if (geo) return { ...geo, address: val, approx: false };
-  // Si con número no la encuentra, probamos solo la calle (el enlace de
-  // navegación usa el TEXTO con número, así que Google/Waze irán a la casa).
-  if (num){ geo = await geocode(base); if (geo) return { ...geo, address: val, approx: false }; }
+  // 1) Coordenada del autocompletado (si la eligió del desplegable).
+  // 2) Búsqueda estructurada de Photon (calle + número + ciudad).
+  // 3) Texto libre (Photon→Nominatim).  4) Solo la calle.
+  let geo = null;
+  if (input._coord && isFinite(input._coord.lat)) geo = { lat: input._coord.lat, lng: input._coord.lng };
+  if (!geo) geo = await geocodeStructured(base, num);
+  if (!geo) geo = await geocode(val);
+  if (!geo && num) geo = await geocode(base);
+  if (geo){
+    geo = await sanityCheckCity(geo, base, num);   // corrige homónimos en otro municipio
+    return { lat: geo.lat, lng: geo.lng, address: val, approx: false };
+  }
   // Hueco real de OSM: caemos al centro de la ciudad para poder ordenarla.
   const parts = base.split(',');
   const cityHint = parts.length > 1 ? parts[parts.length - 1].trim() : '';
