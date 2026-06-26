@@ -674,7 +674,7 @@
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
     <div id="diag" style="font-size:11px; color:var(--text-muted); margin-top:14px; line-height:1.5; border-top:1px solid var(--line); padding-top:10px"></div>
-    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.26-rate</div>
+    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.26-bal</div>
   </div>
 </div>
 
@@ -1149,8 +1149,10 @@ function syncDiag(){
   s += 'LocationIQ: ' + provHits.liqOk + ' OK · ' + provHits.liqFail + ' fallos';
   if (provHits.lastErr) s += ' (último: ' + provHits.lastErr + ')';
   s += '<br>Estado: ' + (gated ? ('⏸️ en pausa hasta ' + hhmm + ' → usando respaldo gratis') : '✅ activo');
+  if (liqBal === 'err') s += '<br>Saldo LocationIQ: no disponible';
+  else if (liqBal && typeof liqBal === 'object') s += '<br>Saldo LocationIQ hoy: <b>' + liqBal.day + '</b> créditos restantes' + (liqBal.bonus ? ' (+' + liqBal.bonus + ' bonus)' : '') + ' <span style="opacity:.7">· reinicia 00:00 UTC</span>';
   s += '<br>Caché de direcciones: ' + cacheN;
-  s += '<br><a href="#" onclick="resetProviders();return false" style="color:var(--blue)">Reiniciar proveedores y caché</a>';
+  s += '<br><a href="#" onclick="liqBalance();return false" style="color:var(--blue)">Consultar saldo LocationIQ</a> · <a href="#" onclick="resetProviders();return false" style="color:var(--blue)">Reiniciar proveedores y caché</a>';
   el.innerHTML = s;
 }
 function resetProviders(){
@@ -2171,6 +2173,7 @@ const LS_LIQ_OUT = 'rutarapida:liqout';
 let liqNetFails = 0, liqSkipUntil = 0;
 // Diagnóstico (en memoria, esta sesión): cuántas llamadas a LocationIQ van bien/mal.
 let provHits = { liqOk: 0, liqFail: 0, lastErr: '' };
+let liqBal = null;   // último saldo consultado de LocationIQ: { day, bonus } | 'err' | null
 function liqUsable(){
   if (Date.now() < liqSkipUntil) return false;
   try { return (Date.now() - (+lsGet(LS_LIQ_OUT) || 0)) > 12*3600*1000; } catch { return true; }
@@ -2203,6 +2206,15 @@ async function liqGet(path, params, ms = 4000){
   if (liqBad(r.status)) { provHits.liqFail++; provHits.lastErr = 'HTTP ' + r.status; throw new Error('liq ' + r.status); }
   if (!r.ok) { provHits.liqFail++; provHits.lastErr = 'HTTP ' + r.status; liqNetTrip(); throw new Error('liq http ' + r.status); }
   const d = await r.json(); provHits.liqOk++; liqNetFails = 0; clearLiqOut(); return d;
+}
+// Consulta el saldo de hoy de LocationIQ (créditos restantes). No gasta crédito de geocodificación.
+async function liqBalance(){
+  try {
+    const r = await fetchT(LIQ_BASE + '/balance?format=json&key=' + LIQ_KEY, 4000);
+    const d = await r.json();
+    liqBal = (d && d.balance) ? d.balance : 'err';
+  } catch { liqBal = 'err'; }
+  syncDiag();
 }
 // LocationIQ acota por "viewbox" (caja) en vez de círculo: caja de ~SEARCH_KM alrededor de la salida.
 function liqViewbox(){
