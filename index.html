@@ -674,7 +674,7 @@
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
     <div id="diag" style="font-size:11px; color:var(--text-muted); margin-top:14px; line-height:1.5; border-top:1px solid var(--line); padding-top:10px"></div>
-    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.26-split2</div>
+    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.26-opt</div>
   </div>
 </div>
 
@@ -2644,7 +2644,7 @@ function bruteForce(origin, stops, cost){
 
 function multiStart(origin, stops, cost, costEval, K){
   const ev = costEval || cost;
-  if (stops.length <= 2) return localSearch(origin, nearestNeighbor(origin, stops, cost), cost);
+  if (stops.length <= 2) return polishDirectional(origin, localSearch(origin, nearestNeighbor(origin, stops, cost), cost), ev);
   if (stops.length <= 7) return bruteForce(origin, stops, ev);   // óptimo exacto, tiempo real de marcha
   let best = localSearch(origin, nearestNeighbor(origin, stops, cost), cost);
   let bestL = routeCost(origin, best, ev);
@@ -2655,7 +2655,50 @@ function multiStart(origin, stops, cost, costEval, K){
     const L = routeCost(origin, s, ev);
     if (L < bestL){ bestL = L; best = s; }
   }
-  return best;
+  // Pulido final sobre el coste REAL direccional (tiempo de marcha A→B). La búsqueda
+  // local de arriba usa un coste simétrico promediado (converge bien en rutas largas),
+  // pero deja mejoras direccionales sin hacer (p. ej. invertir dos paradas seguidas).
+  // Esta pasada recalcula el coste completo en cada prueba → correcto con calles de un
+  // solo sentido, donde A→B ≠ B→A. Es lo que faltaba para que el orden sea el óptimo real.
+  return polishDirectional(origin, best, ev);
+}
+
+// Búsqueda local que optimiza el COSTE REAL (puede ser asimétrico: A→B ≠ B→A).
+// Para que sea correcta con costes asimétricos, evalúa el coste TOTAL de la ruta en
+// cada movimiento candidato (recolocaciones de 1..3 paradas + inversiones de tramo),
+// en vez de usar las fórmulas de delta del 2-opt clásico (que asumen simetría).
+function polishDirectional(origin, stops, ev){
+  let route = stops.slice();
+  let improved = true, passes = 0;
+  const MAX_PASSES = 60;
+  while (improved && passes++ < MAX_PASSES){
+    improved = false;
+    let base = routeCost(origin, route, ev);
+    // 1) Recolocaciones (Or-opt) de tramos de 1..3 paradas, sin invertir.
+    for (let segLen = 1; segLen <= 3 && !improved; segLen++){
+      for (let i = 0; i + segLen <= route.length && !improved; i++){
+        const rest = route.slice(); const seg = rest.splice(i, segLen);
+        for (let pos = 0; pos <= rest.length; pos++){
+          if (pos === i) continue;                       // su sitio original
+          const cand = rest.slice(); cand.splice(pos, 0, ...seg);
+          const L = routeCost(origin, cand, ev);
+          if (L + 1e-7 < base){ route = cand; base = L; improved = true; break; }
+        }
+      }
+    }
+    if (improved) continue;
+    // 2) Inversiones de tramo (2-opt), recalculando el coste completo (correcto si asimétrico).
+    for (let i = 0; i < route.length - 1 && !improved; i++){
+      for (let k = i + 1; k < route.length; k++){
+        const cand = route.slice();
+        const seg = cand.slice(i, k + 1).reverse();
+        cand.splice(i, k - i + 1, ...seg);
+        const L = routeCost(origin, cand, ev);
+        if (L + 1e-7 < base){ route = cand; base = L; improved = true; break; }
+      }
+    }
+  }
+  return route;
 }
 
 // Reparto equilibrado: barrido angular alrededor de la salida y corte en
