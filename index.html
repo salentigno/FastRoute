@@ -647,7 +647,7 @@
         <button class="navapp-opt" id="set-nav-waze" onclick="setNavApp('waze')"><svg viewBox="0 0 24 24" stroke-width="2" fill="none"><path d="M21 11.5a8.5 8.5 0 01-8.5 8.5 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 018.5-8.5 8.5 8.5 0 018.5 8.5z"/></svg>Waze</button>
       </div>
     </div>
-    <div class="set-row">
+    <div class="set-row" style="display:none">
       <span class="set-label" data-i18n="optBy">Optimizar por</span>
       <div class="navapp-seg">
         <button class="navapp-opt" id="set-opt-time" onclick="setOptMode('time')"><svg viewBox="0 0 24 24" stroke-width="2" fill="none"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span data-i18n="optTime">Tiempo</span></button>
@@ -666,7 +666,7 @@
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
     <div id="srv-status" style="font-size:12px; margin-top:14px; line-height:1.5; border-top:1px solid var(--line); padding-top:10px; color:var(--text-muted)"></div>
-    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.29-mtxdiag</div>
+    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.29-clean</div>
   </div>
 </div>
 
@@ -1033,7 +1033,12 @@ function syncNavSeg(){
 // ── Preferencia de optimización: por tiempo o por distancia (ambas reales) ──────
 const LS_OPTMODE = 'rutarapida:optmode';
 let optMode = 'time';
+// Selector Tiempo/Distancia oculto: con un OSRM estándar la matriz de "distancia" son los
+// km de la ruta MÁS RÁPIDA (no la más corta), así que distancia ≈ tiempo. Forzamos tiempo
+// (lo que OSRM calcula de forma fiable). Para reactivar el modo distancia: mostrar de nuevo
+// la fila .set-row del selector y preparar el OSRM de producción con perfil de distancia.
 try { const _o = localStorage.getItem(LS_OPTMODE); if (_o === 'time' || _o === 'distance') optMode = _o; } catch {}
+optMode = 'time';
 function setOptMode(m){
   const nm = (m === 'distance') ? 'distance' : 'time';
   if (nm === optMode){ syncOptSeg(); return; }
@@ -1069,9 +1074,7 @@ function syncServerStatus(){
     : '🟢 <b>Servidor de mapas OK</b> — todo por Photon + OSRM.';
   el.innerHTML = head + '<br><span style="opacity:.85">' +
     line('Búsqueda (Photon)', srvState.search) + '<br>' +
-    line('Rutas (OSRM)', srvState.route) +
-    (matrixInfo ? ('<br>Matriz: ' + (matrixInfo.dist ? 'distancias reales ✓' : 'solo tiempos ✗') + (matrixInfo.dur ? ' · tiempos ✓' : '')) : '') +
-    '</span>' +
+    line('Rutas (OSRM)', srvState.route) + '</span>' +
     '<br><span style="opacity:.7;font-size:11px">Se actualiza solo: vuelve a verde en cuanto una operación va por tu servidor.</span>';
 }
 function resetProviders(){
@@ -1968,7 +1971,6 @@ let liqBal = null;   // último saldo consultado de LocationIQ: { day, bonus } |
 // hubo que usar LocationIQ (servidor caído O un fallo en el código que lo impide).
 // Se autocorrige con el uso: la próxima operación que vaya por tu servidor lo pone en verde.
 let srvState = { search: 'unknown', route: 'unknown' };
-let matrixInfo = null;   // última matriz OSRM/LIQ: { dur:bool, dist:bool } — ¿trae distancias reales?
 function liqUsable(){
   if (Date.now() < liqSkipUntil) return false;
   try { return (Date.now() - (+lsGet(LS_LIQ_OUT) || 0)) > 12*3600*1000; } catch { return true; }
@@ -2687,13 +2689,13 @@ async function fetchTable(pts){
     try {
       const r = await fetchT(url, 8000);
       const d = await r.json();
-      if (d.code === 'Ok' && (d.durations || d.distances)){ srvState.route = 'ok'; matrixInfo = { dur: !!d.durations, dist: Array.isArray(d.distances) }; return { dur: d.durations || null, dist: d.distances || null }; }
+      if (d.code === 'Ok' && (d.durations || d.distances)){ srvState.route = 'ok'; return { dur: d.durations || null, dist: d.distances || null }; }
     } catch {}
     if (attempt < 2) await new Promise(res => setTimeout(res, 400)); // breve espera y reintento
   }
   // 2) LocationIQ (matriz = 1 llamada) — RESPALDO.
   const lm = await liqMatrix(pts);
-  if (lm){ srvState.route = 'fallback'; matrixInfo = { dur: !!lm.dur, dist: Array.isArray(lm.dist) }; return lm; }
+  if (lm){ srvState.route = 'fallback'; return lm; }
   return null;
 }
 // Motor MONOFÁSICO: inserción en paralelo con cupo. Construye las k rutas A LA VEZ
