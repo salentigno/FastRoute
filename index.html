@@ -666,7 +666,7 @@
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
     <div id="srv-status" style="font-size:12px; margin-top:14px; line-height:1.5; border-top:1px solid var(--line); padding-top:10px; color:var(--text-muted)"></div>
-    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.26-status2</div>
+    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.29-border</div>
   </div>
 </div>
 
@@ -2297,6 +2297,46 @@ function kmeans(points, k){
   return clusters.filter(c => c.length); // descarta clusters vacíos
 }
 
+// k-medoids sobre una distancia ARBITRARIA D (aquí, tiempo real por carretera de la
+// matriz). A diferencia de k-means (que promedia coordenadas, geométrico), aquí los
+// "centros" son paradas reales y la cercanía es por carretera → grupos compactos de
+// verdad cuando hay ríos, rondas o sentidos únicos que separan zonas vecinas.
+function kmedoids(points, k, D){
+  if (k <= 1 || points.length <= 1) return [points.slice()];
+  let medoids = [points[0]];                       // siembra: el más lejano cada vez (farthest-first)
+  while (medoids.length < k){
+    let best = points[0], bestD = -1;
+    for (const p of points){
+      let d = Infinity;
+      for (const m of medoids) d = Math.min(d, D(m, p));
+      if (d > bestD){ bestD = d; best = p; }
+    }
+    medoids.push(best);
+  }
+  const assign = new Array(points.length).fill(0);
+  for (let iter = 0; iter < 12; iter++){
+    let changed = false;
+    points.forEach((p, idx) => {
+      let bi = 0, bd = Infinity;
+      medoids.forEach((m, ci) => { const d = D(m, p); if (d < bd){ bd = d; bi = ci; } });
+      if (assign[idx] !== bi){ assign[idx] = bi; changed = true; }
+    });
+    const groups = medoids.map(() => []);
+    points.forEach((p, idx) => groups[assign[idx]].push(p));
+    let moved = false;
+    groups.forEach((g, ci) => {
+      if (!g.length) return;
+      let bestM = g[0], bestSum = Infinity;        // nuevo medoide = el que minimiza suma de D al resto
+      for (const a of g){ let s = 0; for (const b of g) s += D(a, b); if (s < bestSum){ bestSum = s; bestM = a; } }
+      if (bestM !== medoids[ci]){ medoids[ci] = bestM; moved = true; }
+    });
+    if (!changed && !moved && iter > 0) break;
+  }
+  const clusters = medoids.map(() => []);
+  points.forEach((p, idx) => clusters[assign[idx]].push(p));
+  return clusters.filter(c => c.length);
+}
+
 function nearestNeighbor(origin, stops, cost) {
   const c = cost || dist;
   let cur = origin, rem = [...stops], route = [];
@@ -2312,24 +2352,35 @@ function nearestNeighbor(origin, stops, cost) {
 // 2-opt: repeatedly reverse segments that shorten the path. Fixes the
 // self-crossing zig-zags that plain nearest-neighbour leaves behind.
 // Origin is fixed at the start; the end is free (open delivery route).
+// "Don't-look bits": cada nodo que no encontró mejora se marca y se salta en las
+// siguientes pasadas hasta que una inversión cercana lo reactiva. Converge mucho
+// antes en rutas grandes sin cambiar el resultado (termina en óptimo local 2-opt).
 function twoOpt(origin, stops, cost) {
+  const C = cost || dist;
   const route = [origin, ...stops];
-  const D = (a, b) => (cost || dist)(route[a], route[b]);
-  let improved = true, passes = 0;
+  const n = route.length;
+  const D = (a, b) => C(route[a], route[b]);
+  const dontlook = new Array(n).fill(false);
+  let improvedAny = true, passes = 0;
   const MAX_PASSES = 200; // red de seguridad: nunca se cuelga
-  while (improved && passes++ < MAX_PASSES) {
-    improved = false;
-    for (let i = 1; i < route.length - 1; i++) {
-      for (let k = i + 1; k < route.length; k++) {
-        const tail = k + 1 < route.length;
+  while (improvedAny && passes++ < MAX_PASSES) {
+    improvedAny = false;
+    for (let i = 1; i < n - 1; i++) {
+      if (dontlook[i]) continue;
+      let foundForI = false;
+      for (let k = i + 1; k < n; k++) {
+        const tail = k + 1 < n;
         const before = D(i - 1, i) + (tail ? D(k, k + 1) : 0);
         const after  = D(i - 1, k) + (tail ? D(i, k + 1) : 0);
         if (after + 1e-9 < before) {
           let a = i, b = k;
           while (a < b) { const t = route[a]; route[a] = route[b]; route[b] = t; a++; b--; }
-          improved = true;
+          foundForI = true; improvedAny = true;
+          // reactivar los extremos afectados por la inversión
+          [i - 1, i, k, (k + 1 < n ? k + 1 : 0)].forEach(idx => { if (idx > 0) dontlook[idx] = false; });
         }
       }
+      if (!foundForI) dontlook[i] = true;
     }
   }
   return route.slice(1); // drop origin, keep optimised stop order
@@ -2432,11 +2483,18 @@ function multiStart(origin, stops, cost, costEval, K){
   let best = localSearch(origin, nearestNeighbor(origin, stops, cost), cost);
   let bestL = routeCost(origin, best, ev);
   const n = stops.length;
+  const t0 = Date.now();
+  const BUDGET_MS = 700;      // tope por grupo: protege móviles lentos
+  const STALE = 8;            // si 8 arranques seguidos no mejoran, parar (rendimientos decrecientes)
+  let stale = 0;
   for (let k = 0; k < K; k++){
     const start = (k < n) ? nnFromFirst(stops, k % n, cost) : shuffleArr(stops);
     const s = localSearch(origin, start, cost);
     const L = routeCost(origin, s, ev);
-    if (L < bestL){ bestL = L; best = s; }
+    if (L + 1e-9 < bestL){ bestL = L; best = s; stale = 0; }
+    else stale++;
+    if (stale >= STALE) break;
+    if (Date.now() - t0 > BUDGET_MS) break;
   }
   // Pulido final sobre el coste REAL direccional (tiempo de marcha A→B). La búsqueda
   // local de arriba usa un coste simétrico promediado (converge bien en rutas largas),
@@ -2457,15 +2515,21 @@ function polishDirectional(origin, stops, ev){
   while (improved && passes++ < MAX_PASSES){
     improved = false;
     let base = routeCost(origin, route, ev);
-    // 1) Recolocaciones (Or-opt) de tramos de 1..3 paradas, sin invertir.
+    // 1) Recolocaciones (Or-opt) de tramos de 1..3 paradas, normal e invertido.
     for (let segLen = 1; segLen <= 3 && !improved; segLen++){
       for (let i = 0; i + segLen <= route.length && !improved; i++){
         const rest = route.slice(); const seg = rest.splice(i, segLen);
+        const rev = segLen > 1 ? seg.slice().reverse() : null;
         for (let pos = 0; pos <= rest.length; pos++){
           if (pos === i) continue;                       // su sitio original
           const cand = rest.slice(); cand.splice(pos, 0, ...seg);
           const L = routeCost(origin, cand, ev);
           if (L + 1e-7 < base){ route = cand; base = L; improved = true; break; }
+          if (rev){                                      // mismo hueco, tramo al revés
+            const cand2 = rest.slice(); cand2.splice(pos, 0, ...rev);
+            const L2 = routeCost(origin, cand2, ev);
+            if (L2 + 1e-7 < base){ route = cand2; base = L2; improved = true; break; }
+          }
         }
       }
     }
@@ -2506,36 +2570,79 @@ function sweepBalanced(origin, stops, k){
   return clusters.filter(c => c.length);
 }
 
-function clusterStops(origin, stopCoords, k){
+function clusterStops(origin, stopCoords, k, mdist){
   k = Math.max(1, Math.min(k, stopCoords.length));  // nunca más grupos que paradas
   if (k <= 1) return [stopCoords.slice()];
-  return balanceStops ? sweepBalanced(origin, stopCoords, k) : kmeans(stopCoords, k);
+  const hasM = mdist && mdist !== dist;
+  if (balanceStops) return hasM ? balancedByRoad(origin, stopCoords, k, mdist)  // equilibrado: zonas compactas + nº parejo
+                                : sweepBalanced(origin, stopCoords, k);          // sin matriz: barrido geométrico
+  return hasM ? kmedoids(stopCoords, k, mdist)      // zonas: compacto por carretera si hay matriz
+              : kmeans(stopCoords, k);              // si no, por cercanía geográfica
 }
 
-// Coste de un repartidor (orden rápido con búsqueda local) — para comparar repartos.
-function clusterCost(origin, cluster, cost){
+// Medoide de un grupo: la parada que minimiza la suma de distancias (D) a las demás.
+function medoidOf(group, D){
+  let bestM = group[0], bestSum = Infinity;
+  for (const a of group){ let s = 0; for (const b of group) s += D(a, b); if (s < bestSum){ bestSum = s; bestM = a; } }
+  return bestM;
+}
+// Equilibrado POR CARRETERA: parte de zonas compactas (k-medoids) y reequilibra suave
+// moviendo solo paradas de BORDE (las más cercanas al grupo deficitario) hasta que los
+// tamaños quedan parejos (máx − mín ≤ 1). Combina zonas limpias y nº de paradas igualado.
+function balancedByRoad(origin, stops, k, D){
+  let clusters = kmedoids(stops, k, D);
+  if (clusters.length < 2) return clusters;
+  let meds = clusters.map(c => medoidOf(c, D));
+  let guard = 0;
+  const MAX = stops.length * 4;
+  while (guard++ < MAX){
+    let big = 0, small = 0;
+    clusters.forEach((c, i) => { if (c.length > clusters[big].length) big = i; if (c.length < clusters[small].length) small = i; });
+    if (clusters[big].length - clusters[small].length <= 1) break;   // ya equilibrado (floor/ceil)
+    // de 'big', la parada más cercana al medoide del grupo deficitario → mover ahí
+    let bi = 0, bd = Infinity;
+    clusters[big].forEach((p, idx) => { const d = D(meds[small], p); if (d < bd){ bd = d; bi = idx; } });
+    clusters[small].push(clusters[big].splice(bi, 1)[0]);
+    meds[big] = medoidOf(clusters[big], D);
+    meds[small] = medoidOf(clusters[small], D);
+  }
+  return clusters.filter(c => c.length);
+}
+
+// Coste de un repartidor: ordena con 'cost' (simétrico, estable) pero MIDE con 'ev'
+// (tiempo real direccional) → el reparto se decide sobre el tiempo de marcha real.
+function clusterCost(origin, cluster, cost, ev){
   if (!cluster.length) return 0;
-  return routeCost(origin, localSearch(origin, nearestNeighbor(origin, cluster, cost), cost), cost);
+  const ordered = localSearch(origin, nearestNeighbor(origin, cluster, cost), cost);
+  return routeCost(origin, ordered, ev || cost);
 }
 // Mejora del reparto entre repartidores sobre la matriz ya descargada (sin red extra):
 //  · sin equilibrar → mover una parada a otro repartidor o intercambiar dos, si baja el total.
 //  · equilibrado    → solo intercambios (mantiene el mismo nº de paradas por repartidor).
-function improveAssignment(origin, clusters, cost, balanced){
+function improveAssignment(origin, clusters, cost, balanced, ev, loArg, hiArg){
   let R = clusters.map(c => c.slice());
-  let lens = R.map(c => clusterCost(origin, c, cost));
+  let lens = R.map(c => clusterCost(origin, c, cost, ev));
+  // Banda de tamaños para el paso de MOVER paradas (modo sin equilibrar): impide que un
+  // repartidor acapare casi todo y otros queden con migajas. Sin esto, minimizar km
+  // totales de rutas abiertas premia amontonar en uno. Si quien llama pasa lo/hi, se usan
+  // esos límites; si no, una banda por defecto alrededor de la media.
+  const nTot = R.reduce((s, c) => s + c.length, 0);
+  const avg = nTot / R.length;
+  const minSize = (typeof loArg === 'number') ? loArg : Math.max(1, Math.floor(avg * 0.6));
+  const maxSize = (typeof hiArg === 'number') ? hiArg : Math.ceil(avg * 1.5);
   let improved = true, guard = 0;
   const MAX_PASSES = 200;
   while (improved && guard++ < MAX_PASSES){
     improved = false;
     if (!balanced){
       for (let i = 0; i < R.length && !improved; i++){
-        if (R[i].length <= 1) continue;                 // no dejar a un repartidor sin paradas
+        if (R[i].length <= 1 || R[i].length - 1 < minSize) continue;   // no vaciar ni bajar de la banda
         for (let si = 0; si < R[i].length && !improved; si++){
           for (let j = 0; j < R.length && !improved; j++){
-            if (i === j) continue;
+            if (i === j || R[j].length + 1 > maxSize) continue;          // no pasar de la banda
             const ni = R[i].filter((_, x) => x !== si);
             const nj = R[j].concat([R[i][si]]);
-            const li = clusterCost(origin, ni, cost), lj = clusterCost(origin, nj, cost);
+            const li = clusterCost(origin, ni, cost, ev), lj = clusterCost(origin, nj, cost, ev);
             if (li + lj + 1e-6 < lens[i] + lens[j]){
               R[i] = ni; R[j] = nj; lens[i] = li; lens[j] = lj; improved = true;
             }
@@ -2550,7 +2657,7 @@ function improveAssignment(origin, clusters, cost, balanced){
             for (let b = 0; b < R[j].length && !improved; b++){
               const ci = R[i].slice(), cj = R[j].slice();
               const tmp = ci[a]; ci[a] = cj[b]; cj[b] = tmp;
-              const li = clusterCost(origin, ci, cost), lj = clusterCost(origin, cj, cost);
+              const li = clusterCost(origin, ci, cost, ev), lj = clusterCost(origin, cj, cost, ev);
               if (li + lj + 1e-6 < lens[i] + lens[j]){
                 R[i] = ci; R[j] = cj; lens[i] = li; lens[j] = lj; improved = true;
               }
@@ -2586,44 +2693,148 @@ async function fetchTable(pts){
   if (lm){ srvState.route = 'fallback'; return lm; }
   return null;
 }
+// Motor MONOFÁSICO: inserción en paralelo con cupo. Construye las k rutas A LA VEZ
+// (reparto + orden juntos, no en dos fases): cada parada entra en el repartidor y la
+// posición donde MENOS coste real añade, respetando un cupo por repartidor.
+//  · cupo ajustado  (equilibrado) → nº de paradas casi igual.
+//  · cupo holgado   (por zonas)   → zonas compactas, números algo desiguales, sin colapsar.
+function parallelInsertion(origin, stops, k, ev, cap){
+  const routes = Array.from({ length: k }, () => []);
+  // Semillas separadas geográficamente (una por repartidor) para que no arranquen todos
+  // en el mismo sitio. Farthest-first: la más lejana de la salida y luego entre sí.
+  const seeds = [];
+  let f0 = stops[0], d0 = -1;
+  stops.forEach(s => { const d = dist(origin, s); if (d > d0){ d0 = d; f0 = s; } });
+  seeds.push(f0);
+  while (seeds.length < k && seeds.length < stops.length){
+    let best = null, bd = -1;
+    for (const s of stops){
+      if (seeds.includes(s)) continue;
+      let d = Infinity; for (const q of seeds) d = Math.min(d, dist(s, q));
+      if (d > bd){ bd = d; best = s; }
+    }
+    if (!best) break;
+    seeds.push(best);
+  }
+  seeds.forEach((s, i) => routes[i].push(s));
+  const rem = stops.filter(s => !seeds.includes(s));
+  // Coste de meter 's' en una ruta = (detour de inserción) + (anclaje a la zona). El
+  // anclaje = distancia a la parada más cercana que la ruta YA tiene. Sin él, las paradas
+  // junto al depósito tienen detour ~0 en CUALQUIER ruta (abiertas) y se mezclarían entre
+  // zonas; con él, cada parada se va a la ruta cuya zona le queda más cerca.
+  for (const s of rem){
+    let best = null;     // { ri, pos, score }
+    for (let ri = 0; ri < k; ri++){
+      if (routes[ri].length >= cap) continue;          // cupo lleno → no más aquí
+      const r = routes[ri];
+      let detour = Infinity;
+      for (let pos = 0; pos <= r.length; pos++){
+        const a = pos === 0 ? origin : r[pos - 1];
+        const b = pos < r.length ? r[pos] : null;
+        const delta = b ? (ev(a, s) + ev(s, b) - ev(a, b)) : ev(a, s);
+        if (delta < detour) detour = delta;
+      }
+      let anchor = Infinity;                            // distancia a la parada más cercana de la ruta
+      for (const m of r){ const d = ev(s, m); if (d < anchor) anchor = d; }
+      const score = detour + (anchor === Infinity ? 0 : anchor);
+      if (!best || score < best.score) best = { ri, score };
+    }
+    if (!best){                                        // todos al cupo (redondeo) → al menos lleno
+      let ri = 0; for (let i = 1; i < k; i++) if (routes[i].length < routes[ri].length) ri = i;
+      routes[ri].push(s);
+      continue;
+    }
+    // mejor POSICIÓN dentro de la ruta elegida (orden), por detour real
+    const r = routes[best.ri]; let bestPos = r.length, bd2 = Infinity;
+    for (let pos = 0; pos <= r.length; pos++){
+      const a = pos === 0 ? origin : r[pos - 1];
+      const b = pos < r.length ? r[pos] : null;
+      const delta = b ? (ev(a, s) + ev(s, b) - ev(a, b)) : ev(a, s);
+      if (delta < bd2){ bd2 = delta; bestPos = pos; }
+    }
+    r.splice(bestPos, 0, s);
+  }
+  return routes.filter(r => r.length);
+}
+
 // Resuelve el reparto + el orden de cada repartidor.
 async function solveRoutes(origin, stopCoords, k){
-  let clusters = clusterStops(origin, stopCoords, k);   // semilla: k-means (zonas) o barrido (equilibrado)
   let cost = dist;        // coste para los MOVIMIENTOS del heurístico (rutas grandes)
   let costEval = dist;    // coste para EVALUAR/ELEGIR el orden (tiempo real en el sentido de marcha)
+  let mdist = dist;       // distancia para el CLUSTERING (por carretera si hay matriz)
   if (roadOpt && payMode){
     const pts = [origin, ...stopCoords];
-    const T = await fetchTable(pts);                   // ← solo en MODO DE PAGO: matriz por carretera
-    // Elegimos la matriz según la preferencia del usuario; si falta, usamos la otra.
+    const T = await fetchTable(pts);                   // ← matriz por carretera (una sola llamada)
     const M = T && ((optMode === 'distance') ? (T.dist || T.dur) : (T.dur || T.dist));
     if (M){
       pts.forEach((p, idx) => p._mi = idx);
-      // Evaluación: coste REAL en el sentido de marcha A→B (no promediamos, porque
-      // en calles de un solo sentido A→B y B→A difieren y promediar elige peor).
+      // Factor coherente para celdas ausentes: media de (valor matriz / km línea recta).
+      // Así el respaldo va en las MISMAS unidades que la matriz (segundos o metros), en
+      // vez de mezclar con metros de línea recta como antes.
+      let acc = 0, cnt = 0;
+      for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++){
+        if (i === j) continue;
+        const v = M[i] && M[i][j], dd = dist(pts[i], pts[j]);
+        if (typeof v === 'number' && dd > 0){ acc += v / dd; cnt++; }
+      }
+      const perDist = cnt ? acc / cnt : 1000;
+      // Evaluación: coste REAL en el sentido de marcha A→B (no promediamos: en calles
+      // de un solo sentido A→B y B→A difieren y promediar elige peor).
       costEval = (a, b) => {
         const v = M[a._mi] && M[a._mi][b._mi];
-        return (typeof v === 'number') ? v : dist(a, b) * 1000;
+        return (typeof v === 'number') ? v : dist(a, b) * perDist;
       };
-      // Movimientos del heurístico (2-opt/Or-opt invierten tramos): ahí sí conviene
-      // un coste simétrico para que converjan bien. Solo se usa en rutas largas (>7).
+      // Movimientos del heurístico (2-opt/Or-opt invierten tramos): ahí conviene un
+      // coste simétrico para que converjan bien. Solo se usa en rutas largas (>7).
       cost = (a, b) => {
         const x = a._mi, y = b._mi;
         const v1 = M[x] && M[x][y], v2 = M[y] && M[y][x];
         const vals = [v1, v2].filter(v => typeof v === 'number');
-        return vals.length ? (vals.reduce((s, n) => s + n, 0) / vals.length) : dist(a, b) * 1000;
+        return vals.length ? (vals.reduce((s, n) => s + n, 0) / vals.length) : dist(a, b) * perDist;
       };
+      mdist = cost;   // clustering por carretera (simétrico)
     }
   }
+  const clusters = clusterStops(origin, stopCoords, k, mdist);   // método actual (dos fases)
   const orderClusters = cls => cls.map(c => multiStart(origin, c, cost, costEval, Math.min(40, c.length + 12)));
-  if (clusters.length <= 1) return orderClusters(clusters);
-  const improved = improveAssignment(origin, clusters, cost, balanceStops);
-  // Seguridad: la mejora de reparto usa una estimación rápida; comparamos el
-  // resultado final (ya ordenado) con el reparto semilla y nos quedamos el mejor,
-  // así nunca entregamos algo peor que antes.
-  const seedOrdered = orderClusters(clusters);
-  const impOrdered  = orderClusters(improved);
+  if (clusters.length <= 1) return orderClusters(clusters);      // un repartidor: sin reparto
   const sum = rs => rs.reduce((a, r) => a + routeCost(origin, r, costEval), 0);
-  return sum(impOrdered) <= sum(seedOrdered) ? impOrdered : seedOrdered;
+  const n = stopCoords.length;
+
+  // BANDA de tamaños del modo:
+  //  · equilibrado → estrecha (números casi iguales).
+  //  · por zonas   → suelo BAJO (solo para que nadie quede con 1-2 paradas) y techo alto:
+  //    prioriza MENOS km aunque un repartidor lleve bastantes más (lo que pediste).
+  const zLo = Math.max(2, Math.round((n / k) * 0.35));
+  const lo = balanceStops ? Math.max(1, Math.floor(n / k) - 1) : zLo;
+  const hi = balanceStops ? Math.ceil(n / k)                   : (n - (k - 1) * zLo);
+  const valid = sol => sol.every(r => r.length >= lo && r.length <= hi);
+
+  // Pule las FRONTERAS de un reparto: mueve/intercambia paradas entre repartidores si baja
+  // el km/tiempo real (respetando la banda). Es lo que quita las paradas "cruzadas" (una
+  // parada de un repartidor metida en la zona de otro). Se aplica a TODOS los candidatos.
+  const polish = a => improveAssignment(origin, a, cost, balanceStops, costEval, lo, hi);
+
+  // Repartos base, cada uno pulido en fronteras y luego ordenado.
+  const bases = [ clusters,                                                  // dos fases (semilla, ya calculada)
+                  parallelInsertion(origin, stopCoords, k, costEval, Math.ceil(n / k)) ]; // inserción ajustada
+  if (!balanceStops){
+    const capLoose = Math.min(hi, Math.ceil((n / k) * 1.5));                  // inserción holgada (zonas)
+    bases.push(parallelInsertion(origin, stopCoords, k, costEval, capLoose));
+  }
+  const candidates = [];
+  for (const a of bases){
+    if (!a || !a.length) continue;
+    candidates.push(orderClusters(a));            // sin pulir (por si ya es bueno)
+    candidates.push(orderClusters(polish(a)));    // pulido de fronteras (move + swap)
+  }
+  // Nos quedamos el más corto DE ENTRE LOS VÁLIDOS (dentro de la banda). Si ninguno
+  // cumpliera (raro), caemos al más corto sin filtro como último recurso.
+  const pool = candidates.filter(valid);
+  const finalists = pool.length ? pool : candidates;
+  let best = finalists[0], bestL = sum(best);
+  for (let i = 1; i < finalists.length; i++){ const L = sum(finalists[i]); if (L < bestL){ best = finalists[i]; bestL = L; } }
+  return best;
 }
 
 function setOptBusy(msgKey){
