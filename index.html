@@ -666,7 +666,7 @@
       <button class="btn-mini primary" onclick="closeSettings()" data-i18n="done">Listo</button>
     </div>
     <div id="srv-status" style="font-size:12px; margin-top:14px; line-height:1.5; border-top:1px solid var(--line); padding-top:10px; color:var(--text-muted)"></div>
-    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.29-border</div>
+    <div style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:10px; opacity:.7">v2026.06.29-distfix</div>
   </div>
 </div>
 
@@ -2088,7 +2088,7 @@ async function liqMatrix(pts){
     const coords = pts.map(c => `${c.lng},${c.lat}`).join(';');
     const d = await liqGet('/matrix/driving/' + coords, { annotations: 'duration,distance' }, 9000);
     if (!d || d.code !== 'Ok' || !Array.isArray(d.durations) || d.durations.length !== pts.length) return null;
-    return { dur: d.durations, dist: d.distances || d.durations };
+    return { dur: d.durations, dist: Array.isArray(d.distances) ? d.distances : null };  // null si no hay distancias reales (no falsear con tiempos)
   } catch { return null; }
 }
 // Trazado LocationIQ (Directions, máx 25 puntos/llamada → se parte en tramos solapados).
@@ -2765,7 +2765,11 @@ async function solveRoutes(origin, stopCoords, k){
   if (roadOpt && payMode){
     const pts = [origin, ...stopCoords];
     const T = await fetchTable(pts);                   // ← matriz por carretera (una sola llamada)
-    const M = T && ((optMode === 'distance') ? (T.dist || T.dur) : (T.dur || T.dist));
+    // Modo Distancia: usa la matriz de DISTANCIAS reales si existe; si el proveedor no
+    // las da (p. ej. LocationIQ suele dar solo tiempos), NO falseamos con tiempos →
+    // dejamos M=null y el modo Distancia optimiza por línea recta (distancia de verdad).
+    // Modo Tiempo: usa la matriz de tiempos (o distancias si faltan tiempos).
+    const M = T && ((optMode === 'distance') ? (T.dist || null) : (T.dur || T.dist));
     if (M){
       pts.forEach((p, idx) => p._mi = idx);
       // Factor coherente para celdas ausentes: media de (valor matriz / km línea recta).
